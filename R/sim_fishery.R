@@ -16,23 +16,23 @@
 #' @examples sim_fishery(fish = fish, fleet = fleet,...)
 #'
 sim_fishery <-
-  function(fish,
-           fleet,
-           manager,
-           num_patches = 10,
-           sim_years = 1,
-           burn_years = 25,
-           crashed_pop = 1e-3,
-           random_mpas = F,
-           enviro = NA,
-           enviro_strength = 1,
-           rec_driver = "stochastic",
-           est_msy = F,
-           time_step,
-           max_window = 10,
-           min_size = 1,
-           mpa_habfactor = 1,
-           sprinkler = FALSE,
+  function(fish, #pull in params form create_fish
+           fleet, #pull in params form create_fleet
+           manager, #pull in params form create_manager
+           num_patches = 10, # number of MPA patches desired?
+           sim_years = 1, # ???
+           burn_years = 25, # # yrs for the burn in
+           crashed_pop = 1e-3, # population limit defining a crash?
+           random_mpas = F, # are the MPAs defined randomly?
+           enviro = NA, # define different environments/habitats?
+           enviro_strength = 1, #??? how much environment matters?
+           rec_driver = "stochastic", #what drives recruitment? args: "stochastic", "environment" (driven by 'enviro' arg)
+           est_msy = F, # estimate MSY?
+           time_step, # how much time between calculations
+           max_window = 10, # defines window for calculating previous max catch(?) in 'previous_max) but can't find where previous_max is used
+           min_size = 1, #Minimum MPA size limit when random_mpas = T
+           mpa_habfactor = 1, # is habitat within MPA 'better' than outside?
+           sprinkler = FALSE, # is MPA used as a larvae source?
            keep_burn = FALSE,
            tune_costs = FALSE) {
     msy <- NA
@@ -243,7 +243,7 @@ sim_fishery <-
 
       # min_size <- 10
 
-      ms <- min(prop_mpas, max(1, min_size * num_patches))
+      ms <- min(prop_mpas, max(1, min_size * num_patches)) # calculate min MPA size for random MPA generation
 
       cwidth <- num_patches / ms
 
@@ -268,7 +268,7 @@ sim_fishery <-
 
     habitat <- rep(1, num_patches)
 
-    habitat[mpa_locations]  <- mpa_habfactor
+    habitat[mpa_locations]  <- mpa_habfactor # define habitat factor in MPA other than 1 (better (>1) or worse? (<1))
 
     n0_at_age <-
       (fish$r0 / num_patches) * exp(-fish$m * seq(fish$min_age, fish$max_age, fish$time_step))

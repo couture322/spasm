@@ -1,0 +1,97 @@
+---
+title: "Species profiles"
+author: "Jessica Couture"
+date: "June 17, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document compiles data for and defines species profiles for the fisheries-aquaculture interactions project as part of my dissertation work. Profiles should be based on broad species groups associated with fish farms as described in the literature, and parameters should take on central values of the  various species that make up the species groups.
+
+## Forage fish
+
+Sardine, mullet, species groups listed in the literature. The American Fisheries society also collected forage fish parameter data in an [essay from 2016](https://fisheries.org/2016/01/defining-forage-species-to-prevent-a-management-dilemma/). Compare central statistics from species found in the literature () to the AFS values.
+
+TO DO:
+
+* Pull data for *Sardina pilchardus*, *Sardinaella aurita*, and *Mugilidae spp.* from fishbase and calculate averages: 
+  + Size
+  + Age
+  + Habitat
+  + Trophic level
+* Compare pulled data to AFS data
+
+```{r ffDat}
+
+library(FishLife)
+
+# AFS data
+
+sizeAFS <- 28 # median max length; range 2.5 - 76
+ageAFS <- 10 # median max age; range 2-25
+# habitatAFS: 81% pelagic, also reef associated spp (11%) and demersal (8%)
+tlAFS <-  3.2 # for non-juvenile ff, increases to 3.6 whe juveniles are included; range 2.1-4.5
+
+
+
+```
+
+***
+
+## Predator of forage fish
+
+Bonito, amberjack, tuna, horse mackrel
+
+
+```{r predDat, echo=FALSE}
+
+```
+
+***
+
+## Demersal fish
+
+Pollock, cod (esp. saithe), haddock, seabream?
+
+***
+
+## crustaceans?
+
+Lobster, rock crab
+
+
+# Test runs
+
+Forage fish: *Sardina pilchardus*
+
+```{r tester}
+
+
+Spil <- create_fish(scientific_name="Sardina pilchardus")
+
+fshng <- create_fleet(eq_f = 2,
+                      length_50_sel = 17,
+                      #length_95_sel = 20,
+                      fish = Spil)
+
+farm <- create_manager(mpa_size = 10)
+
+sim_fishery(fish = Spil,
+            fleet = fshng,
+            manager = farm)
+            #num_patches = 1)
+
+### Vignette:
+
+fish<-create_fish("white seabass")
+fleet<-create_fleet(eq_f = 2,length_50_sel = 50, fish = fish)
+mngr <- create_manager(create_manager(year_mpa = 12))
+
+sim_fishery(fish = fish,
+            fleet = fleet,
+            manager = mngr)
+
+```

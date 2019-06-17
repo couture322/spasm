@@ -35,8 +35,8 @@
 #' @export
 #'
 #' @examples create_fleet(eq_f = 2,length_50_sel = 25, length_95_sel = 27, fish = bluefish)
-create_fleet <- function(eq_f = NA,
-                         length_50_sel = 1,
+create_fleet <- function(eq_f = NA, # ???
+                         length_50_sel = 1, #  set gear selectivity, relative to spp lengths
                          delta = 2,
                          fish,
                          mpa_reaction = 'concentrate',
