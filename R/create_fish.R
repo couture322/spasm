@@ -2,35 +2,35 @@
 #'
 #' creates a fish list object with all the life history goodies
 #'
-#' @param common_name
-#' @param scientific_name
-#' @param linf
+#' @param common_name common name to query in fishlife
+#' @param scientific_name scientific name to query in fishlife
+#' @param linf species l infinity
 #' @param vbk
 #' @param t0
-#' @param max_age
-#' @param weight_a
-#' @param weight_b
-#' @param length_50_mature
-#' @param length_95_mature
-#' @param age_50_mature
-#' @param age_95_mature
-#' @param age_mature
-#' @param length_mature
-#' @param m
+#' @param max_age maximum age (x)
+#' @param weight_a length to weight ratio a value (coef)
+#' @param weight_b length to weight ratio b value (exponent)
+#' @param length_50_mature length at 50% maturity
+#' @param length_95_mature length at 95% maturity
+#' @param age_50_mature age at 50% mature
+#' @param age_95_mature age at 95% mature
+#' @param age_mature possible single value for age at maturity
+#' @param length_mature possible single value for length at maturity
+#' @param m natural mortality rate
 #' @param steepness
-#' @param density_dependence_form
-#' @param adult_movement
-#' @param larval_movement
-#' @param query_fishlife
-#' @param r0
-#' @param cv_len
+#' @param density_dependence_form used in recruitment calculations function: calculate_recruits; 1, 2, 3
+#' @param adult_movement adult movement parameter relative to num_patches (sim_fishery)
+#' @param larval_movement larval movement parameter relative to num_patches (sim_fishery)
+#' @param query_fishlife logical: fill data from fishlife, default is TRUE
+#' @param r0 virgin recruitment
+#' @param cv_len coefficient of variation for length at age
 #' @param length_units
 #' @param min_age
 #' @param time_step
 #' @param weight_units
-#' @param delta_mature
+#' @param delta_mature difference between length/age_50_mature and length/age_95_mature to calculate 95 from 50
 #' @param price
-#' @param sigma_r
+#' @param sigma_r recruitment variation param
 #' @param rec_ac
 #' @param cores
 #' @param mat_mode
@@ -42,45 +42,45 @@
 #'
 #' @examples white_seabass = create_fish(scientific_name = "Atractoscion nobilis", query_fishlife = T)
 #'
-create_fish <- function(common_name = 'white seabass', # common name to query in fishlife
-                        scientific_name = "Atractoscion nobilis", # scientific name to query in fishlife
-                        linf = NA, # species l infinity
-                        vbk = NA, # k
-                        t0 = -0.1, # time 0
-                        cv_len = 0.1, # length at age coefficient of variation
-                        length_units = 'cm', #length units
-                        min_age = 0, #minimum age
-                        max_age = NA, # maximum age ('x' from growth equations)
-                        time_step = 1, # how much time between steps
-                        weight_a = NA, # length to weight ratio a value (coef)
-                        weight_b = NA, # length to weight ratio b value (exponent)
-                        weight_units = 'kg', # weight units
-                        length_50_mature = NA, # length at 50% maturity
-                        length_95_mature = NA, # length at 95% maturity
-                        delta_mature = .1, # difference between length/age_50_mature and length/age_95_mature to calculate 95 from 50
-                        age_50_mature = NA, # age at 50% mature
-                        age_95_mature = NA, # age at 95% mature
-                        age_mature = NA, # possible single value for age at maturity
-                        length_mature = NA, # possible single value for length at maturity
-                        m = NA, # natural mortality rate
-                        steepness = 0.8, # not used in functions below or sim_fishery
-                        r0 = 10000, # virgin recruitment (used in sim_fishery)
-                        density_dependence_form = 1, # used in recruitment calculations function: calculate_recruits; 1 =
-                        adult_movement = 2, # scales adult movement compared to other individuals (used in sim_fishery)
-                        larval_movement = 2, # param for adult movement
-                        query_fishlife = T, #logical, whether to query fishlife for population parameters
-                        price = 1, # price for catch (used in sim_fishery)
-                        price_cv = 0, # price parameter (used in sim_fishery)
-                        price_ac = 0, # price parameter (used in sim_fishery)
-                        price_slope = 0, # price parameter (used in sim_fishery)
-                        sigma_r = 0, # recruitment variation param
-                        rec_ac = 0, # ???
-                        cores = 4, # ???
-                        mat_mode = "age", # is maturity based on "age" or "length"? "age" is the default
-                        default_wb = 2.8, # ???
-                        tune_weight = FALSE, # ???
-                        density_movement_modifier = 1, # arg for calc_density_gradient ???
-                        linf_buffer = 1.2) { # l infinity buffer
+create_fish <- function(common_name = 'white seabass',
+                        scientific_name = "Atractoscion nobilis",
+                        linf = NA,
+                        vbk = NA,
+                        t0 = -0.1,
+                        cv_len = 0.1,
+                        length_units = 'cm',
+                        min_age = 0,
+                        max_age = NA,
+                        time_step = 1,
+                        weight_a = NA,
+                        weight_b = NA,
+                        weight_units = 'kg',
+                        length_50_mature = NA,
+                        length_95_mature = NA,
+                        delta_mature = .1,
+                        age_50_mature = NA,
+                        age_95_mature = NA,
+                        age_mature = NA,
+                        length_mature = NA,
+                        m = NA,
+                        steepness = 0.8,
+                        r0 = 10000,
+                        density_dependence_form = 1,
+                        adult_movement = 2,
+                        larval_movement = 2,
+                        query_fishlife = T,
+                        price = 1,
+                        price_cv = 0,
+                        price_ac = 0,
+                        price_slope = 0,
+                        sigma_r = 0,
+                        rec_ac = 0,
+                        cores = 4,
+                        mat_mode = "age",
+                        default_wb = 2.8,
+                        tune_weight = FALSE,
+                        density_movement_modifier = 1,
+                        linf_buffer = 1.2) {
 
 
   fish <- list()

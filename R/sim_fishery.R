@@ -1,14 +1,19 @@
 #' \code{sim_fishery} simulates an age structured spatially explicit
 #' model forward with fleets etc.
 #'
-#' @param fish
-#' @param fleet
-#' @param manager
-#' @param num_patches
+#' @param fish pull in params form create_fish
+#' @param fleet pull in params form create_fleet
+#' @param manager pull in params form create_manager
+#' @param num_patches total number of spatial patches
 #' @param sim_years
 #' @param ...
-#' @param burn_years
-#' @param crashed_pop
+#' @param enviro define different environments/habitats
+#' @param rec_driver what drives recruitment? args: "stochastic", "environment" (driven by 'enviro' arg)
+#' @param burn_years number of years for the burn in
+#' @param crashed_pop population limit defining a crash, default is 1e-3
+#' @param max_window defines window for calculating previous max catch
+#' @param sprinkler is MPA used as a larvae source? default os FALSE
+#' @param mpa_habfactor quality of habitat within MPA compared to outside; >1 better, <1 worse
 #'
 #' @return a pop object with population and catch trajectories
 #' @export
@@ -16,23 +21,23 @@
 #' @examples sim_fishery(fish = fish, fleet = fleet,...)
 #'
 sim_fishery <-
-  function(fish, #pull in params form create_fish
-           fleet, #pull in params form create_fleet
-           manager, #pull in params form create_manager
-           num_patches = 10, # number of MPA patches desired?
-           sim_years = 1, # ???
-           burn_years = 25, # # yrs for the burn in
-           crashed_pop = 1e-3, # population limit defining a crash?
-           random_mpas = F, # are the MPAs defined randomly?
-           enviro = NA, # define different environments/habitats?
-           enviro_strength = 1, #??? how much environment matters?
-           rec_driver = "stochastic", #what drives recruitment? args: "stochastic", "environment" (driven by 'enviro' arg)
-           est_msy = F, # estimate MSY?
-           time_step, # how much time between calculations
-           max_window = 10, # defines window for calculating previous max catch(?) in 'previous_max) but can't find where previous_max is used
-           min_size = 1, #Minimum MPA size limit when random_mpas = T
-           mpa_habfactor = 1, # is habitat within MPA 'better' than outside?
-           sprinkler = FALSE, # is MPA used as a larvae source?
+  function(fish,
+           fleet,
+           manager,
+           num_patches = 10,
+           sim_years = 1,
+           burn_years = 25,
+           crashed_pop = 1e-3,
+           random_mpas = F,
+           enviro = NA,
+           enviro_strength = 1,
+           rec_driver = "stochastic",
+           est_msy = F,
+           time_step,
+           max_window = 10,
+           min_size = 1,
+           mpa_habfactor = 1,
+           sprinkler = FALSE,
            keep_burn = FALSE,
            tune_costs = FALSE) {
     msy <- NA
@@ -451,30 +456,6 @@ sim_fishery <-
       select(-from) %>%
       as.matrix()
 
-    # larval_move_grid <-
-    #   expand.grid(
-    #     source = 1:num_patches,
-    #     sink = 1:num_patches
-    #   ) %>%
-    #   mutate(
-    #     distance = source - sink,
-    #     prob = 1 / ((2 * pi) ^ (1 / 2) * fish$larval_movement) * exp(-(distance) ^
-    #       2 / (2 * fish$larval_movement ^ 2))
-    #   ) %>%
-    #   group_by(source) %>%
-    #   mutate(prob_move = prob / sum(prob))
-    #
-    # larval_move_matrix <- larval_move_grid %>%
-    #   ungroup() %>%
-    #   select(source, sink, prob_move) %>%
-    #   spread(sink, prob_move) %>%
-    #   select(-source) %>%
-    #   as.matrix()
-
-
-    # eventual_f <- fleet$eq_f
-    #
-    # fleet$eq_f <- 0
     for (y in 1:(sim_years - 1)) {
       # Move adults
 
