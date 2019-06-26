@@ -37,30 +37,30 @@
 #' @examples create_fleet(eq_f = 2,length_50_sel = 25, length_95_sel = 27, fish = bluefish)
 create_fleet <- function(eq_f = NA, # ???
                          length_50_sel = 1, #  set gear selectivity, relative to spp lengths
-                         delta = 2,
-                         fish,
-                         mpa_reaction = 'concentrate',
-                         cost = .1,
-                         beta = 1,
-                         theta = 1e-1,
-                         max_perc_change_f = 2,
+                         delta = 2, # difference between length_50_sel and length_95_sel
+                         fish, # fish life history data
+                         mpa_reaction = 'concentrate', # 'leave', 'concentrate'; def?
+                         cost = .1, #fishing costs
+                         beta = 1, # effort exponent in cost calcs
+                         theta = 1e-1, # calculated in sim_fishery for cost tuning
+                         max_perc_change_f = 2, # used to calculate theta in sim_fishery
                          max_cr_ratio = 0.75,
-                         b_ref_oa = 0.25,
-                         q = 1e-3,
+                         b_ref_oa = 0.25, # used to calculate tuned cost ratio?
+                         q = 1e-3, # quanity for economic estimates
                          q_cv = 0,
                          q_ac = 0,
                          q_slope = 0,
                          cost_cv = 0,
                          cost_ac = 0,
                          cost_slope = 0,
-                         fleet_model = 'constant-effort',
-                         effort_allocation = 'gravity',
+                         fleet_model = 'constant-effort', # "open access", "supplied-catch", "constant-effort"(?)
+                         effort_allocation = 'gravity', # how are fishers deciding where to fish? options? 'gravity', 'profit-gravity', 'simple'
                          cost_function = 'constant',
                          tech_rate = 0,
                          initial_effort = 100,
                          target_catch = 0,
-                         catches = NA,
-                         sigma_effort = 0,
+                         catches = NA, #dont see where this is used
+                         sigma_effort = 0, # variation around effort
                          profit_lags = 1,
                          mey_buffer = 2,
                          effort_ac = 0) {

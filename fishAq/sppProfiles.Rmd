@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE,warning = FALSE,message = FALSE)
 
 This document compiles data for and defines species profiles for the fisheries-aquaculture interactions project as part of my dissertation work. Profiles should be based on broad species groups associated with fish farms as described in the literature, and parameters should take on central values of the  various species that make up the species groups.
 
-The $spasm$ package has a function $create\_fish()$ to create the appropriate fish population arguments to feed the simulations. 
+The `spasm` package has a function `create_fish()` to create the appropriate fish population arguments to feed the simulations. 
 
 * __common_name__ = 'white seabass', # common name to query in fishlife
 * __scientific_name__ = "Atractoscion nobilis", # scientific name to query in fishlife
@@ -104,6 +104,65 @@ ffTaxa = c(Search_species(Genus="Sardina",Species="pilchardus",add_ancestors=FAL
 Plot_taxa(ffTaxa, mfrow=c(2,2))
 
 ```
+
+```{r ffParams}
+
+ffFish<-create_fish(
+  scientific_name = "Sardina pilchardus",
+  query_fishlife = T,
+  mat_mode = "length",
+  time_step = 1,
+  sigma_r = 0,
+  r0 = 4290000,
+  rec_ac = 0,
+  density_movement_modifier = 0.1,
+  adult_movement = 10,
+  larval_movement = 30,
+  density_dependence_form = 3
+  )
+
+
+ffFleet<-create_fleet(fish = ffFish,
+                      cost_cv =  0,
+                      cost_ac = 0,
+                      cost_slope = 0,
+                      q_cv = 0,
+                      q_ac = .7,
+                      q_slope = 0,
+                      fleet_model = "constant-effort",#"open-access",
+                      sigma_effort = 0,
+                      length_50_sel = 0.5 * ffFish$length_50_mature,
+                      initial_effort = 1,
+                      profit_lags =  1,
+                      beta = 1,
+                      max_cr_ratio = 0.2,
+                      b_ref_oa = 0.9,
+                      max_perc_change_f = 2,
+                      effort_allocation = 'profit-gravity')
+
+ffMngr<-create_manager(mpa_size = 0.75, 
+                       year_mpa = 25)
+
+
+ffSim<-sim_fishery(fish = ffFish,
+            fleet = ffFleet,
+            manager = ffMngr,
+            #num_patches = 3,
+            sim_years = 100,
+            burn_years = 25,
+            time_step = ffFish$time_step,
+            est_msy = FALSE,
+            random_mpas = FALSE,
+            #min_size = 0.05,
+            mpa_habfactor = 2,
+            sprinkler = FALSE,
+            keep_burn = FALSE)
+
+
+plot_spasm(ffSim, type = "totals", font_size = 12)
+
+```
+
 
 ***
 

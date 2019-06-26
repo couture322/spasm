@@ -65,7 +65,7 @@ create_fish <- function(common_name = 'white seabass', # common name to query in
                         m = NA, # natural mortality rate
                         steepness = 0.8, # not used in functions below or sim_fishery
                         r0 = 10000, # virgin recruitment (used in sim_fishery)
-                        density_dependence_form = 1, # not used in functions below or sim_fishery
+                        density_dependence_form = 1, # used in recruitment calculations function: calculate_recruits; 1 =
                         adult_movement = 2, # scales adult movement compared to other individuals (used in sim_fishery)
                         larval_movement = 2, # param for adult movement
                         query_fishlife = T, #logical, whether to query fishlife for population parameters

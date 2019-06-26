@@ -1,0 +1,321 @@
+---
+title: "Forage Fish Runs"
+author: "Jessica Couture"
+date: "June 25, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE,message = FALSE)
+```
+
+This document will test the reaction of fishery (*Sardina pilchardus*) to chaging attraction and farm size. Attraction will be adjusted by changing the `mpa_habfactor` in the `sim_fishery()` function: >1 = better habitat in farm, <1 = worse habitat in farm. This parameter impact recruitment calculations. Farm size will be adjusted using the `mpa_size` argument in the `create_manager()` function. Sizes are percent of total area and will be varied from 10-80%
+
+## *Sardina pilchardus* test data
+Run with constant effort
+
+```{r sarPilDat}
+library(tidyverse)
+library(spasm)
+library(FishLife)
+
+sarPil<-create_fish(
+  scientific_name = "Sardina pilchardus",
+  query_fishlife = T,
+  mat_mode = "length",
+  time_step = 1,
+  sigma_r = 0,
+  r0 = 4290000,
+  rec_ac = 0,
+  density_movement_modifier = 0.1,
+  adult_movement = 10,
+  larval_movement = 30,
+  density_dependence_form = 3
+  )
+
+
+spFleet<-create_fleet(fish = sarPil,
+                      cost_cv =  0,
+                      cost_ac = 0,
+                      cost_slope = 0,
+                      q_cv = 0,
+                      q_ac = .7,
+                      q_slope = 0,
+                      fleet_model = "constant-effort",#"open-access",
+                      sigma_effort = 0,
+                      length_50_sel = 0.5 * sarPil$length_50_mature,
+                      initial_effort = 1,
+                      profit_lags =  1,
+                      beta = 1,
+                      max_cr_ratio = 0.2,
+                      b_ref_oa = 0.9,
+                      max_perc_change_f = 2,
+                      effort_allocation = 'profit-gravity')
+
+```
+
+### Small farm, no attraction
+
+
+
+```{r smallNo}
+
+snMngr<-create_manager(mpa_size = 0.10, 
+                       year_mpa = 25)
+
+
+snSim<-sim_fishery(fish = sarPil,
+            fleet = spFleet,
+            manager = snMngr,
+            #num_patches = 3,
+            sim_years = 100,
+            burn_years = 25,
+            time_step = ffFish$time_step,
+            est_msy = FALSE,
+            random_mpas = FALSE,
+            #min_size = 0.05,
+            mpa_habfactor = 1,
+            sprinkler = FALSE,
+            keep_burn = FALSE)
+
+
+plot_spasm(snSim, type = "totals", font_size = 12)
+
+
+```
+
+### Small farm, with attraction
+
+
+
+```{r smallAttr}
+
+saMngr<-create_manager(mpa_size = 0.10, 
+                       year_mpa = 25)
+
+
+saSim<-sim_fishery(fish = sarPil,
+            fleet = spFleet,
+            manager = saMngr,
+            #num_patches = 3,
+            sim_years = 100,
+            burn_years = 25,
+            time_step = ffFish$time_step,
+            est_msy = FALSE,
+            random_mpas = FALSE,
+            #min_size = 0.05,
+            mpa_habfactor = 2,
+            sprinkler = FALSE,
+            keep_burn = FALSE)
+
+
+plot_spasm(saSim, type = "totals", font_size = 12)
+
+
+```
+
+
+
+### large farm, no attraction
+
+
+```{r largeNo}
+
+lnMngr<-create_manager(mpa_size = 0.80, 
+                       year_mpa = 25)
+
+
+lnSim<-sim_fishery(fish = sarPil,
+            fleet = spFleet,
+            manager = lnMngr,
+            #num_patches = 3,
+            sim_years = 100,
+            burn_years = 25,
+            time_step = ffFish$time_step,
+            est_msy = FALSE,
+            random_mpas = FALSE,
+            #min_size = 0.05,
+            mpa_habfactor = 1,
+            sprinkler = FALSE,
+            keep_burn = FALSE)
+
+
+plot_spasm(lnSim, type = "totals", font_size = 12)
+
+
+```
+
+### large farm, with attraction
+
+
+```{r largeAttr}
+
+laMngr<-create_manager(mpa_size = 0.80, 
+                       year_mpa = 25)
+
+
+laSim<-sim_fishery(fish = sarPil,
+            fleet = spFleet,
+            manager = laMngr,
+            #num_patches = 3,
+            sim_years = 100,
+            burn_years = 25,
+            time_step = ffFish$time_step,
+            est_msy = FALSE,
+            random_mpas = FALSE,
+            #min_size = 0.05,
+            mpa_habfactor = 2,
+            sprinkler = FALSE,
+            keep_burn = FALSE)
+
+
+plot_spasm(laSim, type = "totals", font_size = 12)
+
+
+```
+
+***
+
+## Open access fishing
+
+```{r sarPilOA}
+
+
+oaFleet<-create_fleet(fish = sarPil,
+                      cost_cv =  0,
+                      cost_ac = 0,
+                      cost_slope = 0,
+                      q_cv = 0,
+                      q_ac = .7,
+                      q_slope = 0,
+                      fleet_model = "open-access",
+                      sigma_effort = 0,
+                      length_50_sel = 0.5 * sarPil$length_50_mature,
+                      initial_effort = 1,
+                      profit_lags =  1,
+                      beta = 1,
+                      max_cr_ratio = 0.2,
+                      b_ref_oa = 0.9,
+                      max_perc_change_f = 2,
+                      effort_allocation = 'profit-gravity')
+
+```
+
+### Small farm, no attraction: OA
+
+
+```{r smallNoOA}
+
+snMngr<-create_manager(mpa_size = 0.10, 
+                       year_mpa = 25)
+
+
+snSim<-sim_fishery(fish = sarPil,
+            fleet = oaFleet,
+            manager = snMngr,
+            #num_patches = 3,
+            sim_years = 100,
+            burn_years = 25,
+            time_step = ffFish$time_step,
+            est_msy = FALSE,
+            random_mpas = FALSE,
+            #min_size = 0.05,
+            mpa_habfactor = 1,
+            sprinkler = FALSE,
+            keep_burn = FALSE)
+
+
+plot_spasm(snSim, type = "totals", font_size = 12)
+
+
+```
+
+### Small farm, with attraction: OA
+
+
+```{r smallAttrOA}
+
+saMngr<-create_manager(mpa_size = 0.10, 
+                       year_mpa = 25)
+
+
+saSim<-sim_fishery(fish = sarPil,
+            fleet = oaFleet,
+            manager = saMngr,
+            #num_patches = 3,
+            sim_years = 100,
+            burn_years = 25,
+            time_step = ffFish$time_step,
+            est_msy = FALSE,
+            random_mpas = FALSE,
+            #min_size = 0.05,
+            mpa_habfactor = 2,
+            sprinkler = FALSE,
+            keep_burn = FALSE)
+
+
+plot_spasm(saSim, type = "totals", font_size = 12)
+
+
+```
+
+
+
+### large farm, no attraction: OA
+
+
+```{r largeNoOA}
+
+lnMngr<-create_manager(mpa_size = 0.80, 
+                       year_mpa = 25)
+
+
+lnSim<-sim_fishery(fish = sarPil,
+            fleet = oaFleet,
+            manager = lnMngr,
+            #num_patches = 3,
+            sim_years = 100,
+            burn_years = 25,
+            time_step = ffFish$time_step,
+            est_msy = FALSE,
+            random_mpas = FALSE,
+            #min_size = 0.05,
+            mpa_habfactor = 1,
+            sprinkler = FALSE,
+            keep_burn = FALSE)
+
+
+plot_spasm(lnSim, type = "totals", font_size = 12)
+
+
+```
+
+### large farm, with attraction: OA
+
+
+
+```{r largeAttrOA}
+
+laMngr<-create_manager(mpa_size = 0.80, 
+                       year_mpa = 25)
+
+
+laSim<-sim_fishery(fish = sarPil,
+            fleet = oaFleet,
+            manager = laMngr,
+            #num_patches = 3,
+            sim_years = 100,
+            burn_years = 25,
+            time_step = ffFish$time_step,
+            est_msy = FALSE,
+            random_mpas = FALSE,
+            #min_size = 0.05,
+            mpa_habfactor = 2,
+            sprinkler = FALSE,
+            keep_burn = FALSE)
+
+
+plot_spasm(laSim, type = "totals", font_size = 12)
+
+
+```
