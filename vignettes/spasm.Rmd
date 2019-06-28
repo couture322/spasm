@@ -63,14 +63,15 @@ fleet <- create_fleet(
   max_cr_ratio = 0.9,
   max_perc_change_f = 0.5,
   effort_allocation = 'simple',
-  mpa_reaction = "stay"
+  mpa_reaction = "leave"
 )
 
 
 simple <- spasm::sim_fishery(
   fish = fish,
   fleet = fleet,
-  manager = create_manager(mpa_size = 0.2, year_mpa = 25),
+  manager = create_manager(mpa_size = 0.2, year_mpa = 25,
+                           mpa_locations = 23),
   num_patches = 100,
   sim_years = 50,
   burn_years = 1,
@@ -82,6 +83,11 @@ simple <- spasm::sim_fishery(
   sprinkler = FALSE,
   keep_burn = FALSE
 )
+
+simple %>% 
+  filter(year == max(year),
+         mpa == TRUE) %>% 
+  group_by(patch) 
 
 plot_spasm(simple, type = "totals", font_size = 12)
 
@@ -109,8 +115,8 @@ fish <-
     steepness = 0.9,
     r0 = 4290000,
     rec_ac = 0,
-    density_movement_modifier = 0.1,
-    adult_movement = 10,
+    density_movement_modifier = 0,
+    adult_movement = 4,
     larval_movement = 30,
     density_dependence_form = 3
   )
@@ -136,6 +142,7 @@ fleet <- create_fleet(
 )
 
 
+set.seed(42)
 complex <- spasm::sim_fishery(
   fish = fish,
   fleet = fleet,
@@ -153,6 +160,14 @@ complex <- spasm::sim_fishery(
 )
 
 plot_spasm(complex, type = "patch")
+
+complex %>% 
+  filter(year == max(year)) %>% 
+  group_by(patch) %>% 
+  summarise(biomass = sum(biomass),
+            mpa = unique(mpa)) %>% 
+  ggplot(aes(patch, biomass, fill = mpa)) + 
+  geom_col()
 
 
 ```
@@ -182,7 +197,7 @@ fish <-
     steepness = 0.9,
     r0 = 1000,
     rec_ac = 0,
-    density_movement_modifier = 0,
+    density_movement_modifier = 0.25,
     adult_movement = 3,
     larval_movement = 3,
     density_dependence_form = 3
@@ -227,7 +242,7 @@ complex_fleet <- spasm::sim_fishery(
   tune_costs = TRUE
 )
 
-plot_spasm(complex_fleet)
+plot_spasm(complex_fleet, type = "patch")
 ```
 
 

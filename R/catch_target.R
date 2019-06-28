@@ -30,7 +30,7 @@ catch_target <- function(total_effort,
     mpa = mpa,
     prior_profits = prior_profits,
     year = year,
-    burn_year = burn_year
+    burn_years = burn_years
   )
 
   fs <- efforts * fleet$q
@@ -38,8 +38,8 @@ catch_target <- function(total_effort,
   pop$f <- fs
 
   caught <- pop %>%
-    group_by(patch) %>%
-    mutate(biomass_caught = grow_and_die(
+    dplyr::group_by(patch) %>%
+    dplyr::mutate(biomass_caught = grow_and_die(
       numbers = numbers,
       f = f,
       mpa = mpa,
@@ -52,8 +52,8 @@ catch_target <- function(total_effort,
     }
 
   alive <- pop %>%
-    group_by(patch) %>%
-    mutate(survivors = grow_and_die(
+    dplyr::group_by(patch) %>%
+    dplyr::mutate(survivors = grow_and_die(
       numbers = numbers,
       f = f,
       mpa = mpa,
