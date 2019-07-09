@@ -70,8 +70,7 @@ fleet <- create_fleet(
 simple <- spasm::sim_fishery(
   fish = fish,
   fleet = fleet,
-  manager = create_manager(mpa_size = 0.2, year_mpa = 25,
-                           mpa_locations = 23),
+  manager = create_manager(mpa_size = 0.3, year_mpa = 25),
   num_patches = 100,
   sim_years = 50,
   burn_years = 1,
@@ -238,11 +237,86 @@ complex_fleet <- spasm::sim_fishery(
   min_size = 0.05,
   mpa_habfactor = 4,
   sprinkler = TRUE,
-  keep_burn = FALSE,
-  tune_costs = TRUE
+  keep_burn = TRUE, #
+  tune_costs = FALSE #
 )
 
-plot_spasm(complex_fleet, type = "patch")
+#plot_spasm(complex_fleet, type = "patch")
+plot_spasm(complex_fleet, type = "totals")
 ```
 
 
+## Farms + Fleet Dynamics
+
+
+```{r}
+
+library(tidyverse)
+library(FishLife)
+library(spasm)
+library(ggridges)
+library(gganimate)
+fish <-
+  create_fish(
+    scientific_name = "Atractoscion nobilis",
+    query_fishlife = T,
+    mat_mode = "length",
+    time_step = 1,
+    sigma_r = 0,
+    price = 10,
+    price_cv = 0,
+    price_ac = 0,
+    price_slope = 0,
+    steepness = 0.9,
+    r0 = 1000,
+    rec_ac = 0,
+    density_movement_modifier = 0.25,
+    adult_movement = 3,
+    larval_movement = 3,
+    density_dependence_form = 3
+  )
+
+
+fleet <- create_fleet(
+  fish = fish,
+  cost_cv =  0,
+  cost_ac = 0,
+  cost_slope = 0,
+  q_cv = 0,
+  q_ac = .7,
+  q_slope = 0,
+  fleet_model = "open-access",
+  sigma_effort = 0,
+  length_50_sel = .2 * fish$length_50_mature,
+  initial_effort = 1,
+  profit_lags =  1,
+  beta = 1,
+  max_cr_ratio = 0.2,
+  b_ref_oa = 0.9,
+  max_perc_change_f = 2,
+  effort_allocation = 'profit-gravity'
+)
+
+
+complex_fleetAq <- sim_fisheryAq(
+  fish = fish,
+  fleet = fleet,
+  manager = create_manager(mpa_size = .2, year_mpa = 30),
+  num_patches = 50,
+  sim_years = 50,
+  burn_years = 50,
+  time_step = fish$time_step,
+  est_msy = FALSE,
+  random_mpas = TRUE,
+  min_size = 0.05,
+  mpa_habfactor = 4,
+  fallowFactor=1,
+  farm_yrs = 20:50,
+  sprinkler = TRUE,
+  keep_burn = TRUE,
+  tune_costs = FALSE
+)
+
+#plot_spasm(complex_fleet, type = "patch")
+plot_spasm(complex_fleet, type = "totals")
+```
