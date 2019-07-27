@@ -1,30 +1,15 @@
-#' \code{sim_fisheryAq} simulates an age structured spatially explicit
-#' model forward with fleets etc.
-#'
-#' @param fish pull in params form create_fish
-#' @param fleet pull in params form create_fleet
-#' @param manager pull in params form create_manager
-#' @param num_patches total number of spatial patches
-#' @param sim_years
-#' @param ...
-#' @param enviro define different environments/habitats
-#' @param rec_driver what drives recruitment? args: "stochastic", "environment" (driven by 'enviro' arg)
-#' @param burn_years number of years for the burn in
-#' @param crashed_pop population limit defining a crash, default is 1e-3
-#' @param max_window defines window for calculating previous max catch
-#' @param sprinkler is MPA used as a larvae source? default os FALSE
-#' @param mpa_habfactor quality of habitat within MPA compared to outside; >1 better, <1 worse
-#' @param farm_yrs vector of which years have full full farm presence, numeric, turned into logical in code (T) vs fallow (F)
-#' @param fallowFactor habitat factor for fallowing years
-#'
-#' @return a pop object with population and catch trajectories
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' sim_fishery(fish = fish, fleet = fleet,...)
-#' }
-#'
+---
+title: "Testing farm additions"
+author: "Jessica Couture"
+date: "July 26, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
+```
+
+```{r echo=FALSE}
 sim_fisheryAq <-
   function(fish,
            fleet,
@@ -853,3 +838,171 @@ sim_fisheryAq <-
 
     return(pop)
   }
+
+```
+
+
+## Adult movement impacts
+
+I adjusted the adult_move_grid code in 'sim_fisheryAq.R' to include a multiplier from a new argument in sim_fisheryAq: *"farmStay"*. The default for *farmStay* is NA, but will take a value that will be a divisor for the movement probabilities. The code takes the calculated probability of movement that Dan wrote and divides those cells with the farm by the *farmStay* value. Ren used 2x biomass for his FADs analysis, so will try 2 and 4 to see the impacts.
+
+#### Original from 'spasm.Rmd'
+
+```{r fullSimfishcompareSM}
+
+library(tidyverse)
+library(FishLife)
+library(spasm)
+library(ggridges)
+library(gganimate)
+
+
+fish <-
+  create_fish(
+    scientific_name = "Atractoscion nobilis",
+    query_fishlife = T,
+    mat_mode = "length",
+    time_step = 1,
+    sigma_r = 0,
+    steepness = 0.9,
+    r0 = 4290000,
+    rec_ac = 0,
+    adult_movement = 5,
+    larval_movement = 5,
+    density_dependence_form = 1
+  )
+
+
+fleet <- create_fleet(
+  fish = fish,
+  cost_cv =  0,
+  cost_ac = 0,
+  cost_slope = 0,
+  q_cv = 0,
+  q_ac = .7,
+  q_slope = 0,
+  fleet_model = "open access",#"constant-effort",
+  sigma_effort = 0,
+  length_50_sel = 0.1 * fish$linf,
+  initial_effort = 2000,
+  profit_lags =  5,
+  beta = 2,
+  max_cr_ratio = 0.9,
+  max_perc_change_f = 0.5,
+  effort_allocation = 'simple',
+  mpa_reaction = "leave"
+)
+
+
+simple <- spasm::sim_fishery(
+  fish = fish,
+  fleet = fleet,
+  manager = create_manager(mpa_size = 0.1, year_mpa = 15),
+  num_patches = 100,
+  sim_years = 50,
+  burn_years = 1,
+  time_step = fish$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE
+)
+
+simple %>% 
+  filter(year == max(year),
+         mpa == TRUE) %>% 
+  group_by(patch) 
+
+plot_spasm(simple, type = "totals", font_size = 12)
+
+```
+
+#### Test of *farmStay*
+
+```{r fullSimfishcompareSMt}
+
+simpleTest <- sim_fisheryAq(
+  fish = fish,
+  fleet = fleet,
+  manager = create_manager(mpa_size = 0.1, year_mpa = 15),
+  num_patches = 100,
+  sim_years = 50,
+  burn_years = 1,
+  time_step = fish$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  farmStay = 4, ##
+  sprinkler = FALSE,
+  keep_burn = FALSE
+)
+
+simpleTest %>% 
+  filter(year == max(year),
+         mpa == TRUE) %>% 
+  group_by(patch) 
+
+plot_spasm(simpleTest, type = "totals", font_size = 12)
+
+```
+
+#### simple: large
+
+```{r fullSimfishcompareLG}
+simple <- spasm::sim_fishery(
+  fish = fish,
+  fleet = fleet,
+  manager = create_manager(mpa_size = 0.6, year_mpa = 15),
+  num_patches = 100,
+  sim_years = 50,
+  burn_years = 1,
+  time_step = fish$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE
+)
+
+simple %>% 
+  filter(year == max(year),
+         mpa == TRUE) %>% 
+  group_by(patch) 
+
+plot_spasm(simple, type = "totals", font_size = 12)
+
+```
+
+#### Test of *farmStay*: large
+
+```{r fullSimfishcompareLGt}
+
+simpleTest <- sim_fisheryAq(
+  fish = fish,
+  fleet = fleet,
+  manager = create_manager(mpa_size = 0.6, year_mpa = 15),
+  num_patches = 100,
+  sim_years = 50,
+  burn_years = 1,
+  time_step = fish$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  farmStay = 4, ##
+  sprinkler = FALSE,
+  keep_burn = FALSE
+)
+
+simpleTest %>% 
+  filter(year == max(year),
+         mpa == TRUE) %>% 
+  group_by(patch) 
+
+plot_spasm(simpleTest, type = "totals", font_size = 12)
+
+```

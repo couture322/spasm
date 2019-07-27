@@ -27,7 +27,7 @@ adults_zero <- pop %>%
 
 adults <- adults %>%
   dplyr::left_join(adults_zero, by = "patch") %>%
-  dplyr::mutate(density = pmin(1,(b / b0) * density_modifier)) %>%
+  dplyr::mutate(density = pmin(1,(b / b0) * density_modifier)) %>% #pmin (parallel minimum) calculates the minimum across vectors; b/b0 = percent biomass per cell --> density
   dplyr::select(patch, density)
 
 

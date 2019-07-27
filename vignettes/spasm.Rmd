@@ -94,7 +94,7 @@ plot_spasm(simple, type = "totals", font_size = 12)
 
 
 
-## Complext MPA Example
+## Complex MPA Example
 
 ```{r}
 library(tidyverse)
