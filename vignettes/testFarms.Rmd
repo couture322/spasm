@@ -848,6 +848,14 @@ I adjusted the adult_move_grid code in 'sim_fisheryAq.R' to include a multiplier
 
 #### Original from 'spasm.Rmd'
 
+These tests are under the following scenarios:  
+Adult movement = 5
+Larval movement = 5
+Density independent recruitment (density_dependence_form = 1) *to use farm_habfactor need to use ddf=2*
+fishing = open access --> test how this changes with "constant effort" (doesn't change much, why?)
+
+
+
 ```{r fullSimfishcompareSM}
 
 library(tidyverse)
@@ -894,7 +902,7 @@ fleet <- create_fleet(
 )
 
 
-simple <- spasm::sim_fishery(
+simpleS <- spasm::sim_fishery(
   fish = fish,
   fleet = fleet,
   manager = create_manager(mpa_size = 0.1, year_mpa = 15),
@@ -910,12 +918,18 @@ simple <- spasm::sim_fishery(
   keep_burn = FALSE
 )
 
-simple %>% 
+simpleS %>% 
   filter(year == max(year),
          mpa == TRUE) %>% 
   group_by(patch) 
 
-plot_spasm(simple, type = "totals", font_size = 12)
+plot_spasm(simpleS, type = "totals", font_size = 12)
+
+simpleS%>%
+  group_by(year)%>%
+  mutate(catch=sum(biomass_caught))%>%
+  ggplot(aes(year,catch))+
+  geom_line()
 
 ```
 
@@ -923,7 +937,7 @@ plot_spasm(simple, type = "totals", font_size = 12)
 
 ```{r fullSimfishcompareSMt}
 
-simpleTest <- sim_fisheryAq(
+simpleSTest <- sim_fisheryAq(
   fish = fish,
   fleet = fleet,
   manager = create_manager(mpa_size = 0.1, year_mpa = 15),
@@ -940,19 +954,19 @@ simpleTest <- sim_fisheryAq(
   keep_burn = FALSE
 )
 
-simpleTest %>% 
+simpleSTest %>% 
   filter(year == max(year),
          mpa == TRUE) %>% 
   group_by(patch) 
 
-plot_spasm(simpleTest, type = "totals", font_size = 12)
+plot_spasm(simpleSTest, type = "totals", font_size = 12)
 
 ```
 
 #### simple: large
 
 ```{r fullSimfishcompareLG}
-simple <- spasm::sim_fishery(
+simpleL <- spasm::sim_fishery(
   fish = fish,
   fleet = fleet,
   manager = create_manager(mpa_size = 0.6, year_mpa = 15),
@@ -968,12 +982,12 @@ simple <- spasm::sim_fishery(
   keep_burn = FALSE
 )
 
-simple %>% 
+simpleL %>% 
   filter(year == max(year),
          mpa == TRUE) %>% 
   group_by(patch) 
 
-plot_spasm(simple, type = "totals", font_size = 12)
+plot_spasm(simpleL, type = "totals", font_size = 12)
 
 ```
 
@@ -981,7 +995,7 @@ plot_spasm(simple, type = "totals", font_size = 12)
 
 ```{r fullSimfishcompareLGt}
 
-simpleTest <- sim_fisheryAq(
+simpleLTest <- sim_fisheryAq(
   fish = fish,
   fleet = fleet,
   manager = create_manager(mpa_size = 0.6, year_mpa = 15),
@@ -998,11 +1012,62 @@ simpleTest <- sim_fisheryAq(
   keep_burn = FALSE
 )
 
-simpleTest %>% 
+simpleLTest %>% 
   filter(year == max(year),
          mpa == TRUE) %>% 
   group_by(patch) 
 
-plot_spasm(simpleTest, type = "totals", font_size = 12)
+plot_spasm(simpleLTest, type = "totals", font_size = 12)
 
 ```
+
+### Profits per unit Effort in year 50 compared
+
+```{r}
+smallMPA_PPUE50<-simpleS%>%
+  group_by(year) %>% 
+  summarise(Effort = sum(effort), 
+            Profits = sum(profits), Biomass = sum(biomass)) %>% 
+            ungroup() %>% 
+  mutate(`Profit Per Unit Effort` = Profits/Effort)%>%
+  filter(year==50)%>%
+  mutate(scenario="MPA_small")%>%
+  select(scenario,`Profit Per Unit Effort`)
+
+
+smallFarm_PPUE50<-simpleSTest%>%
+  group_by(year) %>% 
+  summarise(Effort = sum(effort), 
+            Profits = sum(profits), Biomass = sum(biomass)) %>% 
+            ungroup() %>% 
+  mutate(`Profit Per Unit Effort` = Profits/Effort)%>%
+  filter(year==50)%>%
+  mutate(scenario="farm_small")%>%
+  select(scenario,`Profit Per Unit Effort`)
+
+
+largMPA_PPUE50<-simpleL%>%
+  group_by(year) %>% 
+  summarise(Effort = sum(effort), 
+            Profits = sum(profits), Biomass = sum(biomass)) %>% 
+            ungroup() %>% 
+  mutate(`Profit Per Unit Effort` = Profits/Effort)%>%
+  filter(year==50)%>%
+  mutate(scenario="MPA_big")%>%
+  select(scenario,`Profit Per Unit Effort`)
+
+PPUEs50<-simpleLTest%>%
+  group_by(year) %>% 
+  summarise(Effort = sum(effort), 
+            Profits = sum(profits), Biomass = sum(biomass)) %>% 
+            ungroup() %>% 
+  mutate(`Profit Per Unit Effort` = Profits/Effort)%>%
+  filter(year==50)%>%
+  mutate(scenario="farm_big")%>%
+  select(scenario,`Profit Per Unit Effort`)%>%
+  bind_rows(smallMPA_PPUE50,smallFarm_PPUE50,largMPA_PPUE50,.)
+
+PPUEs50
+
+```
+
