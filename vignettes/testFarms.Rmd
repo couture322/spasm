@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
 ```
 
-```{r echo=FALSE}
+```{r echo=FALSE,message=FALSE}
 sim_fisheryAq <-
   function(fish,
            fleet,
@@ -875,7 +875,7 @@ fish <-
     steepness = 0.9,
     r0 = 4290000,
     rec_ac = 0,
-    adult_movement = 5,
+    adult_movement = 10,
     larval_movement = 5,
     density_dependence_form = 1
   )
@@ -889,7 +889,7 @@ fleet <- create_fleet(
   q_cv = 0,
   q_ac = .7,
   q_slope = 0,
-  fleet_model = "open access",#"constant-effort",
+  fleet_model = "constant-effort",
   sigma_effort = 0,
   length_50_sel = 0.1 * fish$linf,
   initial_effort = 2000,
@@ -911,7 +911,7 @@ simpleS <- spasm::sim_fishery(
   burn_years = 1,
   time_step = fish$time_step,
   est_msy = FALSE,
-  random_mpas = FALSE,
+  random_mpas = TRUE,
   min_size = 0.05,
   mpa_habfactor = 1,
   sprinkler = FALSE,
@@ -946,10 +946,10 @@ simpleSTest <- sim_fisheryAq(
   burn_years = 1,
   time_step = fish$time_step,
   est_msy = FALSE,
-  random_mpas = FALSE,
+  random_mpas = TRUE,
   min_size = 0.05,
   mpa_habfactor = 1,
-  farmStay = 4, ##
+  farmStay = 3, ##
   sprinkler = FALSE,
   keep_burn = FALSE
 )
@@ -961,6 +961,14 @@ simpleSTest %>%
 
 plot_spasm(simpleSTest, type = "totals", font_size = 12)
 
+simpleSTest%>% 
+  filter(year == max(year)) %>% 
+  group_by(patch) %>% 
+  summarise(biomass = sum(biomass),
+            mpa = unique(mpa)) %>% 
+  ggplot(aes(patch, biomass, fill = mpa)) + 
+  geom_col()
+
 ```
 
 #### simple: large
@@ -969,13 +977,13 @@ plot_spasm(simpleSTest, type = "totals", font_size = 12)
 simpleL <- spasm::sim_fishery(
   fish = fish,
   fleet = fleet,
-  manager = create_manager(mpa_size = 0.6, year_mpa = 15),
+  manager = create_manager(mpa_size = 0.4, year_mpa = 15),
   num_patches = 100,
   sim_years = 50,
   burn_years = 1,
   time_step = fish$time_step,
   est_msy = FALSE,
-  random_mpas = FALSE,
+  random_mpas = TRUE,
   min_size = 0.05,
   mpa_habfactor = 1,
   sprinkler = FALSE,
@@ -989,6 +997,14 @@ simpleL %>%
 
 plot_spasm(simpleL, type = "totals", font_size = 12)
 
+simpleL %>% 
+  filter(year == max(year)) %>% 
+  group_by(patch) %>% 
+  summarise(biomass = sum(biomass),
+            mpa = unique(mpa)) %>% 
+  ggplot(aes(patch, biomass, fill = mpa)) + 
+  geom_col()
+
 ```
 
 #### Test of *farmStay*: large
@@ -998,16 +1014,16 @@ plot_spasm(simpleL, type = "totals", font_size = 12)
 simpleLTest <- sim_fisheryAq(
   fish = fish,
   fleet = fleet,
-  manager = create_manager(mpa_size = 0.6, year_mpa = 15),
+  manager = create_manager(mpa_size = 0.4, year_mpa = 15),
   num_patches = 100,
   sim_years = 50,
   burn_years = 1,
   time_step = fish$time_step,
   est_msy = FALSE,
-  random_mpas = FALSE,
+  random_mpas = TRUE,
   min_size = 0.05,
   mpa_habfactor = 1,
-  farmStay = 4, ##
+  farmStay = 3, ##
   sprinkler = FALSE,
   keep_burn = FALSE
 )
@@ -1018,6 +1034,14 @@ simpleLTest %>%
   group_by(patch) 
 
 plot_spasm(simpleLTest, type = "totals", font_size = 12)
+
+simpleLTest%>% 
+  filter(year == max(year)) %>% 
+  group_by(patch) %>% 
+  summarise(biomass = sum(biomass),
+            mpa = unique(mpa)) %>% 
+  ggplot(aes(patch, biomass, fill = mpa)) + 
+  geom_col()
 
 ```
 
@@ -1068,6 +1092,95 @@ PPUEs50<-simpleLTest%>%
   bind_rows(smallMPA_PPUE50,smallFarm_PPUE50,largMPA_PPUE50,.)
 
 PPUEs50
+
+```
+
+### varying far size and species mobility
+
+```{r}
+
+rangesFunc<-function(mvVec,szVec){
+
+  df<-data.frame(size=numeric(),
+                 move=numeric(),
+                 ppue=numeric())
+  
+
+  for(i in 1:length(mvVec)){
+    
+          fish <-
+            create_fish(
+            scientific_name = "Atractoscion nobilis",
+            query_fishlife = T,
+            mat_mode = "length",
+            time_step = 1,
+            sigma_r = 0,
+            steepness = 0.9,
+            r0 = 4290000,
+            rec_ac = 0,
+            adult_movement = mvVec[i],
+            larval_movement = 5,
+            density_dependence_form = 1
+            )
+  
+    for(j in 1:length(szVec)){
+      
+      tempDf<-sim_fisheryAq(
+        fish = fish,
+        fleet = fleet,
+        manager = create_manager(mpa_size = szVec[j], year_mpa = 15),
+        num_patches = 100,
+        sim_years = 50,
+        burn_years = 1,
+        time_step = fish$time_step,
+        est_msy = FALSE,
+        random_mpas = TRUE,
+        min_size = 0.05,
+        mpa_habfactor = 1,
+        farmStay = 3, ##
+        sprinkler = FALSE,
+        keep_burn = FALSE)%>%
+        group_by(year) %>% 
+        summarise(Effort = sum(effort), 
+            Profits = sum(profits))%>% 
+            ungroup() %>% 
+        mutate(ppue = Profits/Effort)%>%
+        filter(year==max(year))%>%
+        mutate(size=szVec[j],
+               move=mvVec[i])%>%
+        select(size,move,ppue)
+      
+      df<-df%>%
+        bind_rows(.,tempDf)
+   
+    }
+    
+    rm(fish)
+    rm(tempDf)
+  }
+  return(df)
+}
+  
+```
+
+```{r}
+
+moveVec<-seq(0,10,by=1)
+sizeVec<-seq(0,0.7,by=0.1)
+
+msDf<-rangesFunc(moveVec,sizeVec)
+head(msDf)
+```
+
+```{r}
+
+rangePlot<-ggplot(msDf,aes(move,ppue,color=size,group=size))+
+  geom_point()+
+  geom_line()+
+  theme_bw()
+
+
+rangePlot
 
 ```
 
