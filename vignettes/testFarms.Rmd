@@ -1099,18 +1099,19 @@ PPUEs50
 
 ```{r}
 
-rangesFunc<-function(mvVec,szVec){
+rangesFunc<-function(mvVec,szVec,fsVec){
 
   df<-data.frame(size=numeric(),
                  move=numeric(),
+                 farmStay=numeric(),
                  ppue=numeric())
   
 
   for(i in 1:length(mvVec)){
     
-          fish <-
+          fishP <-
             create_fish(
-            scientific_name = "Atractoscion nobilis",
+            scientific_name = "Pollachius virens",
             query_fishlife = T,
             mat_mode = "length",
             time_step = 1,
@@ -1122,36 +1123,61 @@ rangesFunc<-function(mvVec,szVec){
             larval_movement = 5,
             density_dependence_form = 1
             )
+          
+          fleetP <- create_fleet(
+            fish = fishP,
+            cost_cv =  0,
+            cost_ac = 0,
+            cost_slope = 0,
+            q_cv = 0,
+            q_ac = .7,
+            q_slope = 0,
+            fleet_model = "constant-effort",
+            sigma_effort = 0,
+            length_50_sel = 0.1 * fishP$linf,
+            initial_effort = 2000,
+            profit_lags =  5,
+            beta = 2,
+            max_cr_ratio = 0.9,
+            max_perc_change_f = 0.5,
+            effort_allocation = 'simple',
+            mpa_reaction = "leave"
+            )
   
     for(j in 1:length(szVec)){
-      
-      tempDf<-sim_fisheryAq(
-        fish = fish,
-        fleet = fleet,
-        manager = create_manager(mpa_size = szVec[j], year_mpa = 15),
-        num_patches = 100,
-        sim_years = 50,
-        burn_years = 1,
-        time_step = fish$time_step,
-        est_msy = FALSE,
-        random_mpas = TRUE,
-        min_size = 0.05,
-        mpa_habfactor = 1,
-        farmStay = 3, ##
-        sprinkler = FALSE,
-        keep_burn = FALSE)%>%
-        group_by(year) %>% 
-        summarise(Effort = sum(effort), 
-            Profits = sum(profits))%>% 
-            ungroup() %>% 
-        mutate(ppue = Profits/Effort)%>%
-        filter(year==max(year))%>%
-        mutate(size=szVec[j],
-               move=mvVec[i])%>%
-        select(size,move,ppue)
-      
+
+      for(k in 1:length(fsVec)){
+
+        tempDf<-sim_fisheryAq(
+          fish = fishP,
+          fleet = fleetP,
+          manager = create_manager(mpa_size = szVec[j], year_mpa = 15),
+          num_patches = 100,
+          sim_years = 50,
+          burn_years = 1,
+          time_step = fish$time_step,
+          est_msy = FALSE,
+          random_mpas = TRUE,
+          min_size = 0.05,
+          mpa_habfactor = 1,
+          farmStay = fsVec[k],
+          sprinkler = FALSE,
+          keep_burn = FALSE)%>%
+          group_by(year) %>%
+          summarise(Effort = sum(effort),
+                    Profits = sum(profits))%>%
+          ungroup() %>%
+          mutate(ppue = Profits/Effort)%>%
+          filter(year==max(year))%>%
+          mutate(size=szVec[j],
+                 move=mvVec[i],
+                 farmStay=fsVec[k])%>%
+          select(size,move,farmStay,ppue)
+
+
       df<-df%>%
         bind_rows(.,tempDf)
+      }
    
     }
     
@@ -1167,14 +1193,18 @@ rangesFunc<-function(mvVec,szVec){
 
 moveVec<-seq(0,10,by=1)
 sizeVec<-seq(0,0.7,by=0.1)
+farmVec<-seq(1,10,by=1)
 
-msDf<-rangesFunc(moveVec,sizeVec)
+msDf<-rangesFunc(moveVec,sizeVec,farmVec)
 head(msDf)
 ```
 
 ```{r}
 
-rangePlot<-ggplot(msDf,aes(move,ppue,color=size,group=size))+
+mvSzMPA<-msDf %>%
+  filter(farmStay==1)
+
+rangePlot<-ggplot(mvSzMPA,aes(move,ppue,color=size,group=size))+
   geom_point()+
   geom_line()+
   theme_bw()
@@ -1184,3 +1214,17 @@ rangePlot
 
 ```
 
+```{r}
+
+fsSz<-msDf %>%
+  filter(move==10) #0-10
+
+szFsPlot<-ggplot(fsSz,aes(size,ppue,color=farmStay,group=farmStay))+
+  geom_point()+
+  geom_line()+
+  theme_bw()
+
+
+szFsPlot
+
+```
