@@ -538,7 +538,7 @@ sim_fisheryAq <-
           group_by(from) %>%
           dplyr::mutate(prob_move = movement / sum(movement))%>%
           mutate(farmImpcts=farm_stay)%>%
-          mutate(prob_move=prob_move/farmImpcts)
+          mutate(prob_move=prob_move*farmImpcts)
 
 
         adult_move_matrix <- adult_move_grid %>%
