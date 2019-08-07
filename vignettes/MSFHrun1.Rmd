@@ -1,0 +1,140 @@
+---
+title: "Test-run plots"
+author: "Jessica Couture"
+date: "August 7, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = F,message = F)
+```
+
+## Parameters added to SPASM package: "Attraction"
+
+**farmStay**  
+To account for changes in adult movement, I added a parameter, `farmStay` that is basically a divisor for the probability of adult movement inside the farm area.  
+--> must use density_dependence_for = 2 for `farmStay` to work
+
+**habFactor**
+SPASM has the `mpa_habfactor` built in already, which adjusts the recruitment rates inside the MPA/farm area. Therefore I adjust this to increase juvenile abundance in the area. Does not account for movement of juveniles though, so could be insignificant if juv.movement is high.
+
+In the test runs below I also vary farm `size`, which is a percent of the total area, and the `adult_movement` parameter whose effect depends on the relative size of the modeled space.
+
+Other parameters used in this run:
+
+* Numer of patches = 100
+* Juv. movement = 5
+* Fish sp. = _P. virens_
+* Fishing = "constant effort" (@ effort = 2000)
+* density_dependence_form = 1 (I *think* I need this to be **2** for `farmStay` to work)
+
+```{r}
+library(tidyverse)
+
+msDf<-read_csv("testRunMSFH.csv")
+
+mvSzMPA<-msDf %>%
+  filter(farmStay==1) %>%
+  filter(habFact==1)
+
+rangePlot<-ggplot(mvSzMPA,aes(move,ppue,color=size,group=size))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Standard MPA",
+       x="Adult movement parameter\n(relative to total area)",
+       y="Profit per unit effort")
+
+
+rangePlot
+
+```
+
+When both added parameters are held constant (at 1, no effect) the benefits of the farm/mpa increase with size at intermediate and high adult_movement
+
+```{r}
+
+mvFS<-msDf %>%
+  filter(size==0.5)%>%
+  filter(habFact==1)
+
+mvFSPlot<-ggplot(mvFS,aes(move,ppue,color=farmStay,group=farmStay))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Effect of dulling adult movement parameter (farmStay)",
+       subtitle = "size = 0.5",
+       x="Adult movement parameter\n(relative to total area)",
+       y="Profit per unit effort")
+
+
+mvFSPlot
+
+```
+
+When size of the farm is held at 50% and different farm stay values are tested, there is little difference in PPUE. **Potentially because of wrong `density_dependence_form` was used**
+
+```{r}
+
+szFS<-msDf %>%
+  filter(move==3)%>%
+  filter(habFact==1)
+
+szFSPlot<-ggplot(szFS,aes(size,ppue,color=farmStay,group=farmStay))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Effect of dulling adult movement parameter (farmStay)",
+       subtitle = "movement=3",
+       x="Farm size (% of total area)",
+       y="Profit per unit effort")
+
+
+szFSPlot
+
+```
+
+Similarly, when adult_movement is held constant (adult_movement = 3) PPUE varies little with staying power as farm sizes increase
+
+```{r}
+
+mvHF<-msDf %>%
+  filter(size==0.5)%>%
+  filter(farmStay==1)
+
+mvHFPlot<-ggplot(mvHF,aes(move,ppue,color=habFact,group=habFact))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Effect of recruitment parameter (habfactor)",
+      subtitle = "size = 0.5",
+       x="Adult movement parameter\n(relative to total area)",
+       y="Profit per unit effort")
+
+
+mvHFPlot
+
+```
+
+habfactor matters more at low `adult_movement`
+
+```{r}
+
+szHF<-msDf %>%
+  filter(move==3)%>%
+  filter(farmStay==1)
+
+szHFPlot<-ggplot(szHF,aes(size,ppue,color=habFact,group=habFact))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Effect of recruitment parameter (habfactor)",
+       subtitle = "movement=3",
+       x="Farm size (% of total area)",
+       y="Profit per unit effort")
+
+
+szHFPlot
+
+```
+Something funky at habFactor = 4 and farm size = 0.4

@@ -1099,11 +1099,12 @@ PPUEs50
 
 ```{r}
 
-rangesFunc<-function(mvVec,szVec,fsVec){
+rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
 
   df<-data.frame(size=numeric(),
                  move=numeric(),
                  farmStay=numeric(),
+                 habFact=numeric(),
                  ppue=numeric())
   
 
@@ -1121,7 +1122,7 @@ rangesFunc<-function(mvVec,szVec,fsVec){
             rec_ac = 0,
             adult_movement = mvVec[i],
             larval_movement = 5,
-            density_dependence_form = 1
+            density_dependence_form = 1 # change to 2 to use the farmStay
             )
           
           fleetP <- create_fleet(
@@ -1147,6 +1148,8 @@ rangesFunc<-function(mvVec,szVec,fsVec){
     for(j in 1:length(szVec)){
 
       for(k in 1:length(fsVec)){
+        
+        for(l in 1:length(farmHabFact)){
 
         tempDf<-sim_fisheryAq(
           fish = fishP,
@@ -1155,11 +1158,11 @@ rangesFunc<-function(mvVec,szVec,fsVec){
           num_patches = 100,
           sim_years = 50,
           burn_years = 1,
-          time_step = fish$time_step,
+          time_step = fishP$time_step,
           est_msy = FALSE,
           random_mpas = TRUE,
           min_size = 0.05,
-          mpa_habfactor = 1,
+          mpa_habfactor = farmHabFact[l],
           farmStay = fsVec[k],
           sprinkler = FALSE,
           keep_burn = FALSE)%>%
@@ -1171,17 +1174,20 @@ rangesFunc<-function(mvVec,szVec,fsVec){
           filter(year==max(year))%>%
           mutate(size=szVec[j],
                  move=mvVec[i],
-                 farmStay=fsVec[k])%>%
-          select(size,move,farmStay,ppue)
+                 farmStay=fsVec[k],
+                 habFact=farmHabFact[l])%>%
+          select(size,move,farmStay,habFact,ppue)
 
 
       df<-df%>%
         bind_rows(.,tempDf)
+        }
+      
       }
    
     }
     
-    rm(fish)
+    rm(fishP)
     rm(tempDf)
   }
   return(df)
@@ -1193,21 +1199,36 @@ rangesFunc<-function(mvVec,szVec,fsVec){
 
 moveVec<-seq(0,10,by=1)
 sizeVec<-seq(0,0.7,by=0.1)
-farmVec<-seq(1,10,by=1)
 
-msDf<-rangesFunc(moveVec,sizeVec,farmVec)
+## inputs to farmStay:
+## first tried: seq(1,10,by=1) --> not much impact, trying wider range of values
+## 2nd try: seq(1,100,by=10)
+
+farmVec<-c(1,seq(10,100,by=10))
+
+habVec<-seq(1,4,by=1)
+
+# hours to run # msDf<-rangesFunc(moveVec,sizeVec,farmVec,habVec)#test: rangesFunc(c(0,5),c(0,0.5),c(1,2),c(1,2))
 head(msDf)
+
+#write.csv(msDf,file="data/testRunMSFH.csv",row.names = F)
 ```
 
 ```{r}
 
+msDf<-read_csv("testRunMSFH.csv")
+
 mvSzMPA<-msDf %>%
-  filter(farmStay==1)
+  filter(farmStay==1) %>%
+  filter(habFact==1)
 
 rangePlot<-ggplot(mvSzMPA,aes(move,ppue,color=size,group=size))+
   geom_point()+
   geom_line()+
-  theme_bw()
+  theme_bw()+
+  labs(title = "Standard MPA",
+       x="Adult movement parameter\n(relative to total area)",
+       y="Profit per unit effort")
 
 
 rangePlot
@@ -1216,10 +1237,89 @@ rangePlot
 
 ```{r}
 
-fsSz<-msDf %>%
-  filter(move==10) #0-10
+mvFS<-msDf %>%
+  filter(size==0.5)%>%
+  filter(habFact==1)
 
-szFsPlot<-ggplot(fsSz,aes(size,ppue,color=farmStay,group=farmStay))+
+mvFSPlot<-ggplot(mvFS,aes(move,ppue,color=farmStay,group=farmStay))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Effect of dulling adult movement parameter (farmStay)",
+       x="Adult movement parameter\n(relative to total area)",
+       y="Profit per unit effort")
+
+
+mvFSPlot
+
+```
+
+```{r}
+
+szFS<-msDf %>%
+  filter(move==3)%>%
+  filter(habFact==1)
+
+szFSPlot<-ggplot(szFS,aes(size,ppue,color=farmStay,group=farmStay))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Effect of dulling adult movement parameter (farmStay)",
+       subtitle = "movement=3",
+       x="Farm size (% of total area)",
+       y="Profit per unit effort")
+
+
+szFSPlot
+
+```
+
+```{r}
+
+mvHF<-msDf %>%
+  filter(size==0.5)%>%
+  filter(farmStay==1)
+
+mvHFPlot<-ggplot(mvHF,aes(move,ppue,color=habFact,group=habFact))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Effect of recruitment parameter (habfactor)",
+       x="Adult movement parameter\n(relative to total area)",
+       y="Profit per unit effort")
+
+
+mvHFPlot
+
+```
+
+```{r}
+
+szHF<-msDf %>%
+  filter(move==3)%>%
+  filter(farmStay==1)
+
+szHFPlot<-ggplot(szHF,aes(size,ppue,color=habFact,group=habFact))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Effect of recruitment parameter (habfactor)",
+       subtitle = "movement=3",
+       x="Adult movement parameter\n(relative to total area)",
+       y="Profit per unit effort")
+
+
+szHFPlot
+
+```
+
+```{r}
+
+fsSz<-msDf %>%
+  filter(move==10) %>% #0-10
+  filter(farmStay==20)
+
+szFsPlot<-ggplot(fsSz,aes(size,ppue,group=farmStay))+
   geom_point()+
   geom_line()+
   theme_bw()
