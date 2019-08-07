@@ -58,8 +58,8 @@ sim_fisheryAq <-
 
     b0 <- NA
 
-    farmYrs <- rep(FALSE,sim_years)
-    farmYrs[farm_yrs]<-TRUE
+    farmYrs <- c(rep(0,manager$year_mpa),rep(2,sim_years-manager$year_mpa))
+    farmYrs[farm_yrs]<-1
 
     #fallowFactor<-fallowFactor
 
