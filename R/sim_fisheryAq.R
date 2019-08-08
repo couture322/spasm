@@ -537,8 +537,8 @@ sim_fisheryAq <-
           ))  %>%
           group_by(from) %>%
           dplyr::mutate(prob_move = movement / sum(movement))%>%
-          mutate(farmImpcts=farm_stay)%>%
-          mutate(prob_move=prob_move*farmImpcts)
+          mutate(farmImpcts=farm_stay)%>%  ## add column of parameters in farm locations
+          mutate(prob_move=prob_move*farmImpcts) ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move TO farm locations
 
 
         adult_move_matrix <- adult_move_grid %>%
