@@ -1099,17 +1099,7 @@ PPUEs50
 
 ```{r}
 
-rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
 
-  df<-data.frame(size=numeric(),
-                 move=numeric(),
-                 farmStay=numeric(),
-                 habFact=numeric(),
-                 ppue=numeric())
-  
-
-  for(i in 1:length(mvVec)){
-    
           fishP <-
             create_fish(
             scientific_name = "Pollachius virens",
@@ -1120,7 +1110,7 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
             steepness = 0.9,
             r0 = 4290000,
             rec_ac = 0,
-            adult_movement = mvVec[i],
+            adult_movement = 7,
             larval_movement = 5,
             density_dependence_form = 2 # change to 2 to use the habfactor
             )
@@ -1133,7 +1123,7 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
             q_cv = 0,
             q_ac = .7,
             q_slope = 0,
-            fleet_model = "open access",
+            fleet_model = "constant-effort",
             sigma_effort = 0,
             length_50_sel = 0.1 * fishP$linf,
             initial_effort = 2000,
@@ -1142,8 +1132,17 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
             max_cr_ratio = 0.9,
             max_perc_change_f = 0.5,
             effort_allocation = 'simple',
-            mpa_reaction = "leave" # changed this from "leave" to "concentrate"
+            mpa_reaction = "concentrate" # changed this from "leave" to "concentrate"
             )
+
+rangesFunc<-function(fish,fleet,szVec,fsVec,farmHabFact){
+
+  df<-data.frame(year=numeric(),
+                 size=numeric(),
+                 farmStay=numeric(),
+                 habFact=numeric(),
+                 ppue=numeric())
+  
   
     for(j in 1:length(szVec)){
 
@@ -1152,13 +1151,13 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
         for(l in 1:length(farmHabFact)){
 
         tempDf<-sim_fisheryAq(
-          fish = fishP,
-          fleet = fleetP,
+          fish = fish,
+          fleet = fleet,
           manager = create_manager(mpa_size = szVec[j], year_mpa = 15),
           num_patches = 100,
           sim_years = 50,
           burn_years = 1,
-          time_step = fishP$time_step,
+          time_step = fish$time_step,
           est_msy = FALSE,
           random_mpas = TRUE,
           min_size = 0.05,
@@ -1171,12 +1170,11 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
                     Profits = sum(profits))%>%
           ungroup() %>%
           mutate(ppue = Profits/Effort)%>%
-          filter(year==max(year))%>%
+          #filter(year==max(year))%>%
           mutate(size=szVec[j],
-                 move=mvVec[i],
                  farmStay=fsVec[k],
                  habFact=farmHabFact[l])%>%
-          select(size,move,farmStay,habFact,ppue)
+          select(year,size,farmStay,habFact,ppue)
 
 
       df<-df%>%
@@ -1184,11 +1182,7 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
         }
       
       }
-   
-    }
-    
-    rm(fishP)
-    rm(tempDf)
+      rm(tempDf)
   }
   return(df)
 }
@@ -1198,17 +1192,17 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
 ```{r}
 
 ## test data
-moveVecT<-c(0,10)
-sizeVecT<-c(0,0.5)
-farmVecT<-c(1,10)
-habVecT<-c(1,4)
-msDfT<-rangesFunc(moveVecT,sizeVecT,farmVecT,habVecT)#test:
-head(msDfT)
+#moveVecT<-c(0,10)
+# sizeVecT<-c(0,0.5)
+# farmVecT<-c(1,10)
+# habVecT<-c(1,4)
+# msDfT<-rangesFunc(fishP,fleetP,sizeVecT,farmVecT,habVecT)#test:
+# head(msDfT)
 
 
 ### Full runs
 
-moveVec<-seq(0,10,by=1)
+#moveVec<-seq(0,10,by=1)
 sizeVec<-seq(0,0.7,by=0.1)
 
 ## inputs to farmStay:
@@ -1221,10 +1215,10 @@ farmVec<-seq(1,10,by=1)
 habVec<-seq(1,4,by=1) # not using farm hab-factor, just mpa_habfactor, test this next
 
 # hours to run # 
-#msDf<-rangesFunc(moveVec,sizeVec,farmVec,habVec)#test: rangesFunc(c(0,5),c(0,0.5),c(1,2),c(1,2))
-head(msDf)
+sfhy<-rangesFunc(fishP,fleetP,sizeVec,farmVec,habVec)#test: rangesFunc(c(0,5),c(0,0.5),c(1,2),c(1,2))
+#head(msDf)
 
-#write.csv(msDf,file="data/testRunMSFH.csv",row.names = F)
+write.csv(sfhy,file="testRunSFHY.csv",row.names = F)
 ```
 
 ```{r}
