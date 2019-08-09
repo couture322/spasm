@@ -523,7 +523,7 @@ sim_fisheryAq <-
           group_by(from) %>%
           dplyr::mutate(prob_move = movement / sum(movement))%>%
           mutate(farmImpcts=farm_stay)%>%
-          mutate(prob_move=prob_move/farmImpcts)
+          mutate(prob_move=prob_move*farmImpcts)
 
 
         adult_move_matrix <- adult_move_grid %>%
@@ -1122,7 +1122,7 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
             rec_ac = 0,
             adult_movement = mvVec[i],
             larval_movement = 5,
-            density_dependence_form = 1 # change to 2 to use the farmStay
+            density_dependence_form = 2 # change to 2 to use the habfactor
             )
           
           fleetP <- create_fleet(
@@ -1133,7 +1133,7 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
             q_cv = 0,
             q_ac = .7,
             q_slope = 0,
-            fleet_model = "constant-effort",
+            fleet_model = "open access",
             sigma_effort = 0,
             length_50_sel = 0.1 * fishP$linf,
             initial_effort = 2000,
@@ -1142,7 +1142,7 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
             max_cr_ratio = 0.9,
             max_perc_change_f = 0.5,
             effort_allocation = 'simple',
-            mpa_reaction = "leave"
+            mpa_reaction = "leave" # changed this from "leave" to "concentrate"
             )
   
     for(j in 1:length(szVec)){
@@ -1197,18 +1197,31 @@ rangesFunc<-function(mvVec,szVec,fsVec,farmHabFact){
 
 ```{r}
 
+## test data
+moveVecT<-c(0,10)
+sizeVecT<-c(0,0.5)
+farmVecT<-c(1,10)
+habVecT<-c(1,4)
+msDfT<-rangesFunc(moveVecT,sizeVecT,farmVecT,habVecT)#test:
+head(msDfT)
+
+
+### Full runs
+
 moveVec<-seq(0,10,by=1)
 sizeVec<-seq(0,0.7,by=0.1)
 
 ## inputs to farmStay:
 ## first tried: seq(1,10,by=1) --> not much impact, trying wider range of values
 ## 2nd try: seq(1,100,by=10)
+## 3rd try: changed from divisor to multiplier so will test 1-10 again
 
-farmVec<-c(1,seq(10,100,by=10))
+farmVec<-seq(1,10,by=1)
 
-habVec<-seq(1,4,by=1)
+habVec<-seq(1,4,by=1) # not using farm hab-factor, just mpa_habfactor, test this next
 
-# hours to run # msDf<-rangesFunc(moveVec,sizeVec,farmVec,habVec)#test: rangesFunc(c(0,5),c(0,0.5),c(1,2),c(1,2))
+# hours to run # 
+#msDf<-rangesFunc(moveVec,sizeVec,farmVec,habVec)#test: rangesFunc(c(0,5),c(0,0.5),c(1,2),c(1,2))
 head(msDf)
 
 #write.csv(msDf,file="data/testRunMSFH.csv",row.names = F)
@@ -1216,9 +1229,9 @@ head(msDf)
 
 ```{r}
 
-msDf<-read_csv("testRunMSFH.csv")
+#msDf<-read_csv("testRunMSFH.csv")
 
-mvSzMPA<-msDf %>%
+mvSzMPA<-msDfT %>%
   filter(farmStay==1) %>%
   filter(habFact==1)
 
@@ -1237,7 +1250,7 @@ rangePlot
 
 ```{r}
 
-mvFS<-msDf %>%
+mvFS<-msDfT %>%
   filter(size==0.5)%>%
   filter(habFact==1)
 
@@ -1256,8 +1269,7 @@ mvFSPlot
 
 ```{r}
 
-szFS<-msDf %>%
-  filter(move==3)%>%
+szFS<-msDfT %>%
   filter(habFact==1)
 
 szFSPlot<-ggplot(szFS,aes(size,ppue,color=farmStay,group=farmStay))+
@@ -1265,7 +1277,7 @@ szFSPlot<-ggplot(szFS,aes(size,ppue,color=farmStay,group=farmStay))+
   geom_line()+
   theme_bw()+
   labs(title = "Effect of dulling adult movement parameter (farmStay)",
-       subtitle = "movement=3",
+       subtitle = "movement=5",
        x="Farm size (% of total area)",
        y="Profit per unit effort")
 
@@ -1276,7 +1288,7 @@ szFSPlot
 
 ```{r}
 
-mvHF<-msDf %>%
+mvHF<-msDfT %>%
   filter(size==0.5)%>%
   filter(farmStay==1)
 
@@ -1295,8 +1307,8 @@ mvHFPlot
 
 ```{r}
 
-szHF<-msDf %>%
-  filter(move==3)%>%
+szHF<-msDfT %>%
+  filter(move==5)%>%
   filter(farmStay==1)
 
 szHFPlot<-ggplot(szHF,aes(size,ppue,color=habFact,group=habFact))+
@@ -1305,7 +1317,7 @@ szHFPlot<-ggplot(szHF,aes(size,ppue,color=habFact,group=habFact))+
   theme_bw()+
   labs(title = "Effect of recruitment parameter (habfactor)",
        subtitle = "movement=3",
-       x="Adult movement parameter\n(relative to total area)",
+       x="Farm Size",
        y="Profit per unit effort")
 
 
@@ -1315,7 +1327,7 @@ szHFPlot
 
 ```{r}
 
-fsSz<-msDf %>%
+fsSz<-mdDfT %>%
   filter(move==10) %>% #0-10
   filter(farmStay==20)
 

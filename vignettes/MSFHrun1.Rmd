@@ -2,7 +2,9 @@
 title: "Test-run plots"
 author: "Jessica Couture"
 date: "August 7, 2019"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -25,8 +27,8 @@ Other parameters used in this run:
 * Numer of patches = 100
 * Juv. movement = 5
 * Fish sp. = _P. virens_
-* Fishing = "constant effort" (@ effort = 2000)
-* density_dependence_form = 1 (I *think* I need this to be **2** for `farmStay` to work)
+* Fishing = "constant effort" (@ effort = 2000); reaction to MPA = "leave"
+* density_dependence_form = 2
 
 ```{r}
 library(tidyverse)
@@ -72,7 +74,7 @@ mvFSPlot
 
 ```
 
-When size of the farm is held at 50% and different farm stay values are tested, there is little difference in PPUE. **Potentially because of wrong `density_dependence_form` was used**
+When size of the farm is held at 50% and different farm stay values are tested, there is little difference in PPUE.
 
 ```{r}
 
