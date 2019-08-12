@@ -1,0 +1,165 @@
+---
+title: 'Test-run #2: annual data'
+author: "Jessica Couture"
+date: "August 12, 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = F,message = F)
+```
+
+## Parameters added to SPASM package: "Attraction"
+
+**farmStay**  
+To account for changes in adult movement, I added a parameter, `farmStay` that is basically a divisor for the probability of adult movement inside the farm area.  
+--> must use density_dependence_for = 2 for `farmStay` to work
+
+**habFactor**
+SPASM has the `mpa_habfactor` built in already, which adjusts the recruitment rates inside the MPA/farm area. Therefore I adjust this to increase juvenile abundance in the area. Does not account for movement of juveniles though, so could be insignificant if juv.movement is high.
+
+In the test runs below I also vary farm `size`, which is a percent of the total area, and the `adult_movement` parameter whose effect depends on the relative size of the modeled space.
+
+Other parameters used in this run:
+
+* Numer of patches = 100
+* Juv. movement = 5
+* Adult movement = 7
+* Fish sp. = _P. virens_
+* Fishing = "constant effort" (@ effort = 2000); reaction to MPA = "concentrate"
+* density_dependence_form = 2
+
+```{r data}
+
+library(tidyverse)
+library(cowplot)
+
+sfh<-read_csv("testRunSFHY.csv")
+
+```
+
+## Adult movement inhibitor: *Farm stay*
+
+```{r just_farmStay, echo=FALSE}
+
+fs20<-sfh%>%
+  filter(size==0.2)%>%
+  filter(habFact==1)
+
+fs_s20<-ggplot(fs20,aes(year,ppue,color=as.factor(farmStay),group=as.factor(farmStay)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(10,16))+
+  labs(y="Price / effort",title = "Farm size = 20%")+
+  theme(legend.position = "none")
+
+
+fs70<-sfh%>%
+  filter(size==0.7)%>%
+  filter(habFact==1)
+
+fs_s70<-ggplot(fs70,aes(year,ppue,color=as.factor(farmStay),group=as.factor(farmStay)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(10,16))+
+  labs(y="Price / effort",title = "Farm size = 70%")+
+  scale_color_discrete(name="farmStay")
+
+plot_grid(fs_s20,fs_s70,nrow=1,rel_widths = c(1,1.3))
+
+```
+
+
+## Recruitment: *Habfactor*
+
+```{r just_habFact}
+
+hf20<-sfh%>%
+  filter(size==0.2)%>%
+  filter(farmStay==1)
+
+hf_s20<-ggplot(hf20,aes(year,ppue,color=as.factor(habFact),group=as.factor(habFact)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(9,16))+
+  labs(y="Price / effort",title = "Farm size = 20%")+
+  theme(legend.position = "none")
+
+
+hf70<-sfh%>%
+  filter(size==0.7)%>%
+  filter(farmStay==1)
+
+hf_s70<-ggplot(hf70,aes(year,ppue,color=as.factor(habFact),group=as.factor(habFact)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(9,16))+
+  labs(y="Price / effort",title = "Farm size = 70%")+
+  scale_color_discrete(name="habFactor")
+
+plot_grid(hf_s20,hf_s70,nrow=1,rel_widths = c(1,1.3))
+
+```
+
+***
+
+## All
+
+```{r all_farmStay}
+
+afs20<-sfh%>%
+  filter(size==0.2)%>%
+  filter(habFact==4)
+
+afs_s20<-ggplot(afs20,aes(year,ppue,color=as.factor(farmStay),group=as.factor(farmStay)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(9,16))+
+  labs(y="Price / effort",title = "Farm size = 20%")+
+  theme(legend.position = "none")
+
+
+afs70<-sfh%>%
+  filter(size==0.7)%>%
+  filter(habFact==4)
+
+afs_s70<-ggplot(afs70,aes(year,ppue,color=as.factor(farmStay),group=as.factor(farmStay)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(9,16))+
+  labs(y="Price / effort",title = "Farm size = 70%")+
+  scale_color_discrete(name="farmStay")
+
+plot_grid(afs_s20,afs_s70,nrow=1,rel_widths = c(1,1.3))
+```
+
+```{r all_habFact}
+
+ahf20<-sfh%>%
+  filter(size==0.2)%>%
+  filter(farmStay==10)
+
+ahf_s20<-ggplot(ahf20,aes(year,ppue,color=as.factor(habFact),group=as.factor(habFact)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(9,16))+
+  labs(y="Price / effort",title = "Farm size = 20%")+
+  theme(legend.position = "none")
+
+
+ahf70<-sfh%>%
+  filter(size==0.7)%>%
+  filter(farmStay==10)
+
+ahf_s70<-ggplot(ahf70,aes(year,ppue,color=as.factor(habFact),group=as.factor(habFact)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(9,16))+
+  labs(y="Price / effort",title = "Farm size = 70%")+
+  scale_color_discrete(name="habFactor")
+
+plot_grid(ahf_s20,ahf_s70,nrow=1,rel_widths = c(1,1.3))
+
+```
