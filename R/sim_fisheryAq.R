@@ -34,6 +34,7 @@ sim_fisheryAq <-
            burn_years = 25,
            crashed_pop = 1e-3,
            random_mpas = F,
+           farmSize=0, # to set regular MPA/farms of a specific size (value is numer of patches, will be distributed evenly along the total area)
            enviro = NA,
            enviro_strength = 1,
            rec_driver = "stochastic",
@@ -45,6 +46,7 @@ sim_fisheryAq <-
            farm_yrs = NA,
            fallowFactor = NA,
            farmStay=1,
+           bufferMove=1,
            sprinkler = FALSE,
            keep_burn = FALSE,
            tune_costs = FALSE) {
@@ -258,6 +260,21 @@ sim_fisheryAq <-
 
     prop_mpas <- round(num_patches * manager$mpa_size)
 
+    if(farmSize>0) {
+
+      nFrms<-round(prop_mpas/farmSize)
+
+      farmStart<-round(seq(0,num_patches,length.out = nFrms+2)[2:nFrms+1])
+
+      farmLFunc<-function(x){
+        seq(x,(x+farmSize),by=1)
+      }
+
+      locsList<-lapply(farmStart, farmLFunc)
+      mpa_locations<-unlist(locsList)
+
+    } else {
+
     if (random_mpas == T & prop_mpas > 0) {
 
       ms <- min(prop_mpas, max(1, min_size * num_patches)) # calculate min MPA size for random MPA generation
@@ -295,6 +312,7 @@ sim_fisheryAq <-
         stop("invalid MPA location supplied, make sure MPAs fit inside number of patches")
       }
     }
+    }
 
 
     habitat <- rep(1, num_patches)
@@ -308,6 +326,11 @@ sim_fisheryAq <-
       mpa_locations <- (1:num_patches)[0:prop_mpas] #weird zero is in case prop_mpas is zero
 
     }
+
+    ### buffer code
+
+    bufferLocs<-c(farmStart-1,farmStart+farmSize+1)
+
 
     n0_at_age <-
       (fish$r0 / num_patches) * exp(-fish$m * seq(fish$min_age, fish$max_age, fish$time_step))
@@ -436,9 +459,13 @@ sim_fisheryAq <-
     #   mutate(prob_move = prob / sum(prob))
 
     farm_stay <- rep(1, num_patches)
+    buffMov<-rep(1,num_patches)
 
     if(!is.na(farmStay)==F){
       farm_stay[mpa_locations]  <- farmStay}
+
+    if(!is.na(bufferMove)==F){
+      buffMov[bufferLocs]  <- bufferMove}
 
     adult_move_grid <-
       expand.grid(from = 1:num_patches, to = 1:num_patches) %>%
@@ -537,8 +564,10 @@ sim_fisheryAq <-
           ))  %>%
           group_by(from) %>%
           dplyr::mutate(prob_move = movement / sum(movement))%>%
-          mutate(farmImpcts=farm_stay)%>%  ## add column of parameters in farm locations
-          mutate(prob_move=prob_move*farmImpcts) ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move TO farm locations
+          mutate(farmImpcts=farm_stay,
+                 farmBuff=buffMov)%>%
+          mutate(prob_move=prob_move/farmImpcts) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
+          mutate(prob_move=probMove*farmBuff)
 
 
         adult_move_matrix <- adult_move_grid %>%

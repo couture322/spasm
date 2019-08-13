@@ -1,5 +1,5 @@
 ---
-title: 'Test-run #2: annual data'
+title: 'Test-run #2: annual data (2)'
 author: "Jessica Couture"
 date: "August 12, 2019"
 output:
@@ -30,13 +30,15 @@ Other parameters used in this run:
 * Fish sp. = _P. virens_
 * Fishing = "constant effort" (@ effort = 2000); reaction to MPA = "concentrate"
 * density_dependence_form = 2
+* random_mpa = FALSE
+* ADDED catch data
 
 ```{r data}
 
 library(tidyverse)
 library(cowplot)
 
-sfh<-read_csv("testRunSFHY.csv")
+sfh<-read_csv("testRunSFHY2.csv")
 
 ```
 
@@ -51,7 +53,7 @@ fs20<-sfh%>%
 fs_s20<-ggplot(fs20,aes(year,ppue,color=as.factor(farmStay),group=as.factor(farmStay)))+
   geom_line()+
   theme_bw()+
-  lims(y=c(10,16))+
+  lims(y=c(7,16))+
   labs(y="Price / effort",title = "Farm size = 20%")+
   theme(legend.position = "none")
 
@@ -63,11 +65,33 @@ fs70<-sfh%>%
 fs_s70<-ggplot(fs70,aes(year,ppue,color=as.factor(farmStay),group=as.factor(farmStay)))+
   geom_line()+
   theme_bw()+
-  lims(y=c(10,16))+
+  lims(y=c(7,16))+
   labs(y="Price / effort",title = "Farm size = 70%")+
   scale_color_discrete(name="farmStay")
 
-plot_grid(fs_s20,fs_s70,nrow=1,rel_widths = c(1,1.3))
+fsJ<-plot_grid(fs_s20,fs_s70,nrow=1,rel_widths = c(1,1.3))
+
+### Catch data
+
+cfs_s20<-ggplot(fs20,aes(year,catch,color=as.factor(farmStay),group=as.factor(farmStay)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(270000,320000))+
+  labs(y="catch",title = "Farm size = 20%")+
+  theme(legend.position = "none")
+
+cfs_s70<-ggplot(fs70,aes(year,catch,color=as.factor(farmStay),group=as.factor(farmStay)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(270000,320000))+
+  labs(y="Catch",title = "Farm size = 70%")+
+  scale_color_discrete(name="farmStay")
+
+cfsJ<-plot_grid(cfs_s20,cfs_s70,nrow=1,rel_widths = c(1,1.3))
+
+
+plot_grid(fsJ,cfsJ,ncol=1)
+
 
 ```
 
@@ -83,7 +107,7 @@ hf20<-sfh%>%
 hf_s20<-ggplot(hf20,aes(year,ppue,color=as.factor(habFact),group=as.factor(habFact)))+
   geom_line()+
   theme_bw()+
-  lims(y=c(9,16))+
+  lims(y=c(7,16))+
   labs(y="Price / effort",title = "Farm size = 20%")+
   theme(legend.position = "none")
 
@@ -95,11 +119,31 @@ hf70<-sfh%>%
 hf_s70<-ggplot(hf70,aes(year,ppue,color=as.factor(habFact),group=as.factor(habFact)))+
   geom_line()+
   theme_bw()+
-  lims(y=c(9,16))+
+  lims(y=c(7,16))+
   labs(y="Price / effort",title = "Farm size = 70%")+
   scale_color_discrete(name="habFactor")
 
-plot_grid(hf_s20,hf_s70,nrow=1,rel_widths = c(1,1.3))
+hfJ<-plot_grid(hf_s20,hf_s70,nrow=1,rel_widths = c(1,1.3))
+
+### Catch data
+
+chf_s20<-ggplot(hf20,aes(year,catch,color=as.factor(habFact),group=as.factor(habFact)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(270000,320000))+
+  labs(y="catch",title = "Farm size = 20%")+
+  theme(legend.position = "none")
+
+chf_s70<-ggplot(hf70,aes(year,catch,color=as.factor(habFact),group=as.factor(habFact)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(270000,320000))+
+  labs(y="Catch",title = "Farm size = 70%")+
+  scale_color_discrete(name="habFactor")
+
+chfJ<-plot_grid(chf_s20,chf_s70,nrow=1,rel_widths = c(1,1.3))
+
+plot_grid(hfJ,chfJ,ncol = 1)
 
 ```
 
@@ -128,11 +172,31 @@ afs70<-sfh%>%
 afs_s70<-ggplot(afs70,aes(year,ppue,color=as.factor(farmStay),group=as.factor(farmStay)))+
   geom_line()+
   theme_bw()+
-  lims(y=c(9,16))+
+  lims(y=c(7,16))+
   labs(y="Price / effort",title = "Farm size = 70%")+
   scale_color_discrete(name="farmStay")
 
-plot_grid(afs_s20,afs_s70,nrow=1,rel_widths = c(1,1.3))
+afs<-plot_grid(afs_s20,afs_s70,nrow=1,rel_widths = c(1,1.3))
+
+### catch
+
+cafs_s20<-ggplot(afs20,aes(year,catch,color=as.factor(farmStay),group=as.factor(farmStay)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(180000,320000))+
+  labs(y="Catch",title = "Farm size = 20%")+
+  theme(legend.position = "none")
+
+cafs_s70<-ggplot(afs70,aes(year,catch,color=as.factor(farmStay),group=as.factor(farmStay)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(180000,320000))+
+  labs(y="Catch",title = "Farm size = 70%")+
+  scale_color_discrete(name="farmStay")
+
+cafs<-plot_grid(cafs_s20,cafs_s70,nrow=1,rel_widths = c(1,1.3))
+
+plot_grid(afs,cafs,ncol = 1)
 ```
 
 ```{r all_habFact}
@@ -144,7 +208,7 @@ ahf20<-sfh%>%
 ahf_s20<-ggplot(ahf20,aes(year,ppue,color=as.factor(habFact),group=as.factor(habFact)))+
   geom_line()+
   theme_bw()+
-  lims(y=c(9,16))+
+  lims(y=c(7,16))+
   labs(y="Price / effort",title = "Farm size = 20%")+
   theme(legend.position = "none")
 
@@ -156,10 +220,30 @@ ahf70<-sfh%>%
 ahf_s70<-ggplot(ahf70,aes(year,ppue,color=as.factor(habFact),group=as.factor(habFact)))+
   geom_line()+
   theme_bw()+
-  lims(y=c(9,16))+
+  lims(y=c(7,16))+
   labs(y="Price / effort",title = "Farm size = 70%")+
   scale_color_discrete(name="habFactor")
 
-plot_grid(ahf_s20,ahf_s70,nrow=1,rel_widths = c(1,1.3))
+ahf<-plot_grid(ahf_s20,ahf_s70,nrow=1,rel_widths = c(1,1.3))
+
+### catch
+
+cahf_s20<-ggplot(ahf20,aes(year,catch,color=as.factor(habFact),group=as.factor(habFact)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(180000,320000))+
+  labs(y="Catch",title = "Farm size = 20%")+
+  theme(legend.position = "none")
+
+cahf_s70<-ggplot(ahf70,aes(year,catch,color=as.factor(habFact),group=as.factor(habFact)))+
+  geom_line()+
+  theme_bw()+
+  lims(y=c(180000,320000))+
+  labs(y="Catch",title = "Farm size = 70%")+
+  scale_color_discrete(name="habFactor")
+
+cahf<-plot_grid(cahf_s20,cahf_s70,nrow=1,rel_widths = c(1,1.3))
+
+plot_grid(ahf,cahf,ncol = 1)
 
 ```

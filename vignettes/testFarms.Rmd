@@ -502,3 +502,95 @@ szFsPlot<-ggplot(fsSz,aes(size,ppue,group=farmStay))+
 szFsPlot
 
 ```
+
+### Testing added buffer around farm
+
+Also changed `farmStay` back to a divisor and add the buffer as multiplier. Finally a structure to the mpa/farm definitions to create evenly spaced uniform farms
+
+```{r farmBuff}
+
+stayMoveFunc<-function(fish,fleet,szVec,fsVec,bmVec){
+
+  df<-data.frame(year=numeric(),
+                 size=numeric(),
+                 farmStay=numeric(),
+                 buffMov=numeric(),
+                 ppue=numeric(),
+                 biomass=numeric())
+  
+  
+    for(j in 1:length(szVec)){
+
+      for(k in 1:length(fsVec)){
+        
+        for(l in 1:length(bmVec)){
+
+        tempDf<-sim_fisheryAq(
+          fish = fish,
+          fleet = fleet,
+          manager = create_manager(mpa_size = szVec[j], year_mpa = 15),
+          num_patches = 100,
+          sim_years = 50,
+          burn_years = 1,
+          time_step = fish$time_step,
+          est_msy = FALSE,
+          random_mpas = FALSE, # hoping to simplify with FALSE
+          min_size = 0.05,
+          mpa_habfactor = 1,
+          bufferMove = 3,
+          farmSize = 3,
+          farmStay = fsVec[k],
+          sprinkler = FALSE,
+          keep_burn = FALSE)%>%
+          group_by(year) %>%
+          summarise(Effort = sum(effort),
+                    Profits = sum(profits),
+                    biomass=sum(biomass))%>%
+          ungroup() %>%
+          mutate(ppue = Profits/Effort)%>%
+          #filter(year==max(year))%>%
+          mutate(size=szVec[j],
+                 farmStay=fsVec[k],
+                 buffer=bmVec[l])%>%
+          select(year,size,farmStay,buffMove,biomass,ppue)
+
+
+      df<-df%>%
+        bind_rows(.,tempDf)
+        }
+      
+      }
+      rm(tempDf)
+  }
+  return(df)
+}
+
+
+```
+
+
+
+```{r}
+
+## test data
+#moveVecT<-c(0,10)
+# sizeVecT<-c(0,0.5)
+# farmVecT<-c(1,10)
+# habVecT<-c(1,4)
+# msDfT<-rangesFunc(fishP,fleetP,sizeVecT,farmVecT,habVecT)#test:
+# head(msDfT)
+
+
+### Full runs
+
+#moveVec<-seq(0,10,by=1)
+sizeVecfb<-seq(0,0.2,by=0.5)
+
+farmVecfb<-seq(1,7,by=1)
+
+buffVec<-seq(1,4,by=1) 
+
+fsBm<-stayMoveFunc(fishP,fleetP,sizeVecfb,farmVecfb,buffVec)
+
+#write.csv(fsBm,file="testRunSFHY2.csv",row.names = F)
+```
