@@ -260,11 +260,11 @@ sim_fisheryAq <-
 
     prop_mpas <- round(num_patches * manager$mpa_size)
 
-    if(farmSize>0) {
+    if(farmSize>0 & manager$mpa_size>0) {
 
       nFrms<-round(prop_mpas/farmSize)
 
-      farmStart<-round(seq(0,num_patches,length.out = nFrms+2)[2:nFrms+1])
+      farmStart<-round(seq(0,num_patches,length.out = nFrms+2))[1:nFrms+1]
 
       farmLFunc<-function(x){
         seq(x,(x+farmSize),by=1)
@@ -329,8 +329,11 @@ sim_fisheryAq <-
 
     ### buffer code
 
-    bufferLocs<-c(farmStart-1,farmStart+farmSize+1)
+    bufferLocs<-if(exists("farmStart",envir = globalenv())==T){
 
+      c(farmStart-1,farmStart+farmSize+1)
+
+      }
 
     n0_at_age <-
       (fish$r0 / num_patches) * exp(-fish$m * seq(fish$min_age, fish$max_age, fish$time_step))
@@ -567,7 +570,7 @@ sim_fisheryAq <-
           mutate(farmImpcts=farm_stay,
                  farmBuff=buffMov)%>%
           mutate(prob_move=prob_move/farmImpcts) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
-          mutate(prob_move=probMove*farmBuff)
+          mutate(prob_move=prob_move*farmBuff)
 
 
         adult_move_matrix <- adult_move_grid %>%
