@@ -267,7 +267,7 @@ sim_fisheryAq <-
       farmStart<-round(seq(0,num_patches,length.out = nFrms+2))[1:nFrms+1]
 
       farmLFunc<-function(x){
-        seq(x,(x+farmSize),by=1)
+        seq(x,(x+farmSize-1),by=1)
       }
 
       locsList<-lapply(farmStart, farmLFunc)

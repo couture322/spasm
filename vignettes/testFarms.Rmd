@@ -273,12 +273,12 @@ PPUEs50
             query_fishlife = T,
             mat_mode = "length",
             time_step = 1,
-            sigma_r = 0,
-            steepness = 0.9,
-            r0 = 4290000,
-            rec_ac = 0,
-            adult_movement = 7,
-            larval_movement = 5,
+            # sigma_r = 0,
+            # steepness = 0.9,
+            # r0 = 4290000,
+            # rec_ac = 0,
+            # adult_movement = 7,
+            # larval_movement = 5,
             density_dependence_form = 2 # change to 2 to use the habfactor
             )
           
@@ -514,7 +514,7 @@ stayMoveFunc<-function(fish,fleet,szVec,fsVec,bmVec){
   df<-data.frame(year=numeric(),
                  size=numeric(),
                  farmStay=numeric(),
-                 buffMov=numeric(),
+                 buffer=numeric(),
                  ppue=numeric(),
                  biomass=numeric())
   
@@ -552,7 +552,7 @@ stayMoveFunc<-function(fish,fleet,szVec,fsVec,bmVec){
           mutate(size=szVec[j],
                  farmStay=fsVec[k],
                  buffer=bmVec[l])%>%
-          select(year,size,farmStay,buffMove,biomass,ppue)
+          select(year,size,farmStay,buffer,biomass,ppue)
 
 
       df<-df%>%
@@ -584,13 +584,13 @@ stayMoveFunc<-function(fish,fleet,szVec,fsVec,bmVec){
 ### Full runs
 
 #moveVec<-seq(0,10,by=1)
-sizeVecfb<-seq(0,0.2,by=0.5)
+sizeVecfb<-seq(0,0.2,by=0.05)
 
-farmVecfb<-seq(1,7,by=1)
+farmVecfb<-seq(1,10,by=1)
 
-buffVec<-seq(1,4,by=1) 
+buffVec<-seq(1,10,by=1) 
 
 fsBm<-stayMoveFunc(fishP,fleetP,sizeVecfb,farmVecfb,buffVec)
 
-#write.csv(fsBm,file="testRunSFHY2.csv",row.names = F)
+write.csv(fsBm,file="testRunSFBY2.csv",row.names = F)
 ```
