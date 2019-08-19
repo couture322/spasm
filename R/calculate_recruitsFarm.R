@@ -81,8 +81,8 @@ calculate_recruitsFarm <-
           }
 
         # browser()
-        recruits <- if(is.na(farm_yrs)|farmYrs[y]==0) {recruits} else {
-                        if(farmYrs[y]==1) {
+        recruits <- if(is.na(farmYrs[pop$year[1]]==0)) {recruits} else {
+                        if(farmYrs[pop$year[1]]==1) {
                           recruits * prop_patch_habitat} else {
                             recruits * prop_fallow_habitat}
 

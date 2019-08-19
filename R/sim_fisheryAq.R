@@ -44,9 +44,10 @@ sim_fisheryAq <-
            min_size = 1,
            mpa_habfactor = 1,
            farm_yrs = NA,
-           fallowFactor = NA,
+           fallowFactor = 1,
            farmStay=1,
            bufferMove=1,
+           buffSize=0,
            sprinkler = FALSE,
            keep_burn = FALSE,
            tune_costs = FALSE) {
@@ -331,7 +332,7 @@ sim_fisheryAq <-
 
     bufferLocs<-if(exists("farmStart",envir = globalenv())==T){
 
-      c(farmStart-1,farmStart+farmSize+1)
+      c(farmStart-buffSize,farmStart+farmSize+buffSize)
 
       }
 
@@ -834,16 +835,16 @@ sim_fisheryAq <-
       pop$numbers[pop$year == (y + 1) &
                     pop$age == fish$min_age] <-
         #calculate_recruitsFarm(
-        calculate_recruits(
-          #farmYrs=farmYrs,
+        calculate_recruitsFarm(
+          farmYrs=farmYrs,
           pop = pop[pop$year == y, ],
           fish = fish,
           num_patches = num_patches,
           phase = model_phase,
           move_matrix = larval_move_matrix,
           rec_devs = rec_devs[y + 1],
-          patch_habitat = habitat#,
-          #fallowHab = fallowHab
+          patch_habitat = habitat,
+          fallowHab = fallowHab
         )
 
 

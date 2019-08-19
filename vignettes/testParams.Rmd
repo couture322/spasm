@@ -8,7 +8,8 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE,message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE,message = FALSE, warning = FALSE,
+                      fig.height = 9)
 ```
 
 
@@ -32,9 +33,10 @@ sim_fisheryAq <-
            min_size = 1,
            mpa_habfactor = 1,
            farm_yrs = NA,
-           fallowFactor = NA,
+           fallowFactor = 1,
            farmStay=1,
            bufferMove=1,
+           buffSize=0,
            sprinkler = FALSE,
            keep_burn = FALSE,
            tune_costs = FALSE) {
@@ -319,7 +321,7 @@ sim_fisheryAq <-
 
     bufferLocs<-if(exists("farmStart",envir = globalenv())==T){
 
-      c(farmStart-1,farmStart+farmSize+1)
+      c(farmStart-buffSize,farmStart+farmSize+buffSize)
 
       }
 
@@ -436,6 +438,19 @@ sim_fisheryAq <-
 
     model_phase <- "burn"
 
+    # adult_move_grid <-
+    #   expand.grid(
+    #     source = 1:num_patches,
+    #     sink = 1:num_patches
+    #   ) %>%
+    #   mutate(
+    #     distance = source - sink,
+    #     prob = 1 / ((2 * pi) ^ (1 / 2) * fish$adult_movement) * exp(-(distance) ^
+    #       2 / (2 * fish$adult_movement ^ 2))
+    #   ) %>%
+    #   group_by(source) %>%
+    #   mutate(prob_move = prob / sum(prob))
+
     farm_stay <- rep(1, num_patches)
     buffMov<-rep(1,num_patches)
 
@@ -509,6 +524,11 @@ sim_fisheryAq <-
 
         slope <- fish$adult_movement - (fish$adult_movement * fish$density_movement_modifier)
 
+        # depletion = seq(0,2, by = 0.1)
+        #
+        # pmin(fish$adult_movement, slope * depletion + (fish$adult_movement * fish$density_movement_modifier)) %>%
+        #   plot()
+
         how_crowded <- pop %>%
           filter(now_year) %>%
           group_by(patch) %>%
@@ -549,6 +569,18 @@ sim_fisheryAq <-
           spread(to, prob_move) %>%
           dplyr:: select(-from) %>%
           as.matrix()
+
+        # adult_density_modifier <-
+        #   calc_density_gradient(
+        #     pop,
+        #     y,
+        #     num_patches = num_patches,
+        #     density_modifier = fish$density_movement_modifier
+        #   )
+        #
+        # if (any(adult_density_modifier < 0)) {
+        #   browser()
+        # }
       }
 
       if (num_patches > 1) {
@@ -559,7 +591,8 @@ sim_fisheryAq <-
             fish = fish,
             num_patches = num_patches,
             move_matrix = adult_move_matrix
-
+            # move_matrix = (adult_move_matrix * adult_density_modifier) / rowSums(((adult_move_matrix) * (adult_density_modifier)))
+            # move_matrix = exp(log(adult_move_matrix) + log(adult_density_modifier)) / rowSums(exp(log(adult_move_matrix) + log(adult_density_modifier)))
           )
       }
 
@@ -587,6 +620,14 @@ sim_fisheryAq <-
             tune_costs == TRUE) {
           #located here to allow for b0
 
+          # huh <- map_dbl(seq(0.01,0.9, by = 0.1), estimate_costs, fish = fish,
+          #                fleet = fleet,
+          #                b_ref_oa = fleet$b_ref_oa,
+          #                lags = 10,
+          #                num_patches = num_patches,
+          #                sim_years = sim_years,
+          #                burn_years = burn_years
+          # )
 
           tuned_cr_ratio <-
             nlminb(
@@ -605,6 +646,22 @@ sim_fisheryAq <-
               mpa_habfactor = mpa_habfactor
             )
 
+          # tuned_cr_ratio <-
+          #   nlminb(
+          #     c(0.3,0.05),
+          #     estimate_costs,
+          #     fish = fish,
+          #     fleet = fleet,
+          #     b_ref_oa = fleet$b_ref_oa,
+          #     lower = c(1e-3,1e-3),
+          #     upper = c(0.75,10),
+          #     lags = 10,
+          #     num_patches = num_patches,
+          #     sim_years = sim_years,
+          #     burn_years = burn_years,
+          #     sprinkler = sprinkler,
+          #     mpa_habfactor = mpa_habfactor
+          #   )
           tune_costs <- FALSE
 
           fleet$max_cr_ratio <- tuned_cr_ratio$par[1]
@@ -767,16 +824,16 @@ sim_fisheryAq <-
       pop$numbers[pop$year == (y + 1) &
                     pop$age == fish$min_age] <-
         #calculate_recruitsFarm(
-        calculate_recruits(
-          #farmYrs=farmYrs,
+        calculate_recruitsFarm(
+          farmYrs=farmYrs,
           pop = pop[pop$year == y, ],
           fish = fish,
           num_patches = num_patches,
           phase = model_phase,
           move_matrix = larval_move_matrix,
           rec_devs = rec_devs[y + 1],
-          patch_habitat = habitat#,
-          #fallowHab = fallowHab
+          patch_habitat = habitat,
+          fallowHab = fallowHab
         )
 
 
@@ -818,10 +875,109 @@ sim_fisheryAq <-
 
     return(pop)
   }
+
+
+calculate_recruitsFarm <-
+  function(farmYrs,
+           pop,
+           fish,
+           num_patches,
+           patch_habitat = 1,
+           fallowHab,
+           phase = 'burn',
+           move_matrix,
+           rec_devs = 0) {
+    if (length(patch_habitat) == 1) {
+      patch_habitat <- rep(patch_habitat, num_patches)
+
+    }
+    prop_patch_habitat <- ((patch_habitat / sum(patch_habitat)))
+
+    prop_fallow_habitat <- ((fallowHab / sum(fallowHab)))
+
+    r0s <-
+      rep(fish$r0, num_patches) * prop_patch_habitat
+
+    # ssb0s <- rep(fish$ssb0, num_patches) * ((patch_habitat / sum(patch_habitat)))
+
+    ssb0s <- fish$ssb0
+
+
+    if (phase == 'burn') {
+      recruits <-
+        rep(fish$r0, num_patches)
+      if (fish$density_dependence_form != 2){
+
+        recruits <- crossprod(recruits, move_matrix)
+
+      }
+
+    } else {
+      if (fish$density_dependence_form == 1) {
+        # Recruitment is independent in each area, but a fraction of the recruits in each area drift to the adjacent areas before settling
+        recruits <- pop %>%
+          dplyr::group_by(patch) %>%
+          dplyr::summarise(ssb = sum(ssb)) %>%
+          dplyr::mutate(recruits = (0.8 * r0s * fish$steepness * ssb) / (
+            0.2 * ssb0s * (1 - fish$steepness) +
+              (fish$steepness - 0.2) * ssb
+          )) %>% {
+            .$recruits
+          }
+
+        recruits <- crossprod(recruits, move_matrix)
+
+      }
+      if (fish$density_dependence_form == 2) {
+        # Density dependence occurs at the regional level and then recruits move
+
+        recruits <- pop %>%
+          dplyr::summarise(ssb = sum(ssb)) %>%
+          dplyr::mutate(recruits = (0.8 * sum(r0s) * fish$steepness * ssb) / (
+            0.2 * sum(fish$ssb0) * (1 - fish$steepness) +
+              (fish$steepness - 0.2) * ssb
+          )) %>% {
+            .$recruits
+          }
+
+        # browser()
+        recruits <- if(is.na(farmYrs[pop$year[1]]==0)) {recruits} else {
+                        if(farmYrs[pop$year[1]]==1) {
+                          recruits * prop_patch_habitat} else {
+                            recruits * prop_fallow_habitat}
+
+        # recruits <- crossprod(recruits, move_matrix)
+
+      }
+  }
+      if (fish$density_dependence_form == 3) {
+        #larvae are distributed to each area, and then density dependence occurs based on the number of spawners in each area
+
+        ssb <- pop %>%
+          dplyr::group_by(patch) %>%
+          dplyr::summarise(ssb = sum(ssb))
+
+        larvae <- crossprod(ssb$ssb, move_matrix)
+
+        recruits <- (0.8 * r0s * fish$steepness * larvae) / (
+          0.2 * ssb0s * (1 - fish$steepness) +
+            (fish$steepness - 0.2) * larvae)
+
+      }
+
+    }
+    recruits <- recruits * exp(rec_devs - fish$sigma_r^2/2);
+
+    return(recruits)
+
+  }
+
 ```
 
 
-Testing the impacts of MPA vs farm (compared to no MPA) under constant effort and open access fishery management. The species used here will be a pollock species: Saithe (*P. virens*), which is highly mobile and has commonly been found at high abundances around farms. Most of the biological data I am pulling from fishbase, but movement has been updated to be 5 for adults and juveniles.
+Testing the impacts of MPA vs farm (compared to no MPA) under constant effort and open access fishery management. The species used here will be a pollock species: Saithe ([*P. virens*](https://www.fishbase.se/summary/Pollachius-virens.html)), which is highly mobile and has commonly been found at high abundances around farms. Most of the biological data I am pulling from fishbase, but movement has been updated to be 5 for adults and juveniles.   
+  
+Additionally, distribution and design of farms compared to MPAs is different. Here I simpulate one large MPA compared to several separate farms (farm size defined by the *farmSize* parameter in the `sim_fisheryAq` function). Also need to test the impacts of these orientations on the results.
 
 Common parameters include:
 
@@ -1125,7 +1281,7 @@ oaAll<-bind_rows(oaNull,oaMPA,oaAq)%>%
   mutate(PPUE=profits/effort) %>%
   filter(year>50)
 
-oaBM<-ggplot(ceAll,aes(year,biomass,color=run,group=run))+
+oaBM<-ggplot(oaAll,aes(year,biomass,color=run,group=run))+
   geom_line()+
   labs()+
   theme_bw()
@@ -1144,5 +1300,478 @@ plot_grid(oaBM,oaCatch,oaPPUE,ncol=1)
 
 ```
 
+***
+
+## Testing orientation of protected spaces
+
+```{r}
+
+frmSzs<-c(0,1,3,5)
+
+```
+
+One large farm versus multiple smaller farms of different sizes. For farms, how does the farm size change the results?  
+Testing: `farmSize` = `r frmSzs`  
+**a farm size = 0 indicates no dividing up, so there will be one large farm*
+
+```{r}
+
+shape<-data.frame(year=numeric(), 
+                  farmSize=numeric(),
+                  biomass=numeric(),
+                  catch=numeric(),
+                  PPUE=numeric())
+
+
+for(i in 1:length(frmSzs)) {
+  
+  df <- sim_fisheryAq(
+    fish = fishPv,
+    fleet = fleetOA, ### OPEN ACCESS
+    manager = create_manager(mpa_size = 0.2, year_mpa = 50),
+    num_patches = 100,
+    sim_years = 100,
+    burn_years = 1,
+    time_step = fishPv$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    mpa_habfactor = 1,
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    bufferMove = 100,
+    farmSize = frmSzs[i], #####
+    farmStay = 100) %>%
+    group_by(year)%>%
+    summarise(effort=sum(effort),
+            profits=sum(profits),
+            biomass=sum(biomass),
+            catch=sum(numbers_caught)) %>%
+    ungroup()%>%
+    mutate(PPUE=profits/effort,
+           farmSize=frmSzs[i]) %>%
+    select(year, farmSize, biomass, catch, PPUE)
+  
+  shape<-bind_rows(shape,df)
+
+
+}
+
+
+shpBM<-ggplot(shape[shape$year>50,],aes(year,biomass,color=as.factor(farmSize),group=as.factor(farmSize)))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+shpCatch<-ggplot(shape[shape$year>50,],aes(year,catch,color=as.factor(farmSize),group=as.factor(farmSize)))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+shpPPUE<-ggplot(shape[shape$year>50,],aes(year,PPUE,color=as.factor(farmSize),group=as.factor(farmSize)))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+shpTtl<-ggdraw()+draw_label("Open access")
+
+plot_grid(shpTtl,shpBM,shpCatch,shpPPUE,ncol=1,rel_heights = c(0.15,1,1,1))
+```
+
+```{r}
+
+shapeCE<-data.frame(year=numeric(), 
+                  farmSize=numeric(),
+                  biomass=numeric(),
+                  catch=numeric(),
+                  PPUE=numeric())
+
+
+for(i in 1:length(frmSzs)) {
+  
+  df <- sim_fisheryAq(
+    fish = fishPv,
+    fleet = fleetCE, ### CONSTANT EFFORT
+    manager = create_manager(mpa_size = 0.2, year_mpa = 50),
+    num_patches = 100,
+    sim_years = 100,
+    burn_years = 1,
+    time_step = fishPv$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    mpa_habfactor = 1,
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    bufferMove = 100,
+    farmSize = frmSzs[i], #####
+    farmStay = 100) %>%
+    group_by(year)%>%
+    summarise(effort=sum(effort),
+            profits=sum(profits),
+            biomass=sum(biomass),
+            catch=sum(numbers_caught)) %>%
+    ungroup()%>%
+    mutate(PPUE=profits/effort,
+           farmSize=frmSzs[i]) %>%
+    select(year, farmSize, biomass, catch, PPUE)
+  
+  shapeCE<-bind_rows(shapeCE,df)
+
+
+}
+
+
+shpBMCE<-ggplot(shapeCE[shapeCE$year>50,],aes(year,biomass,color=as.factor(farmSize),group=as.factor(farmSize)))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+shpCatchCE<-ggplot(shapeCE[shapeCE$year>50,],aes(year,catch,color=as.factor(farmSize),group=as.factor(farmSize)))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+shpPPUECE<-ggplot(shapeCE[shapeCE$year>50,],aes(year,PPUE,color=as.factor(farmSize),group=as.factor(farmSize)))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+shpTtlCE<-ggdraw()+draw_label("Constant Effort")
+
+plot_grid(shpTtlCE,shpBMCE,shpCatchCE,shpPPUECE,ncol=1,rel_heights = c(0.15,1,1,1))
+
+```
+
+### MPA vs farm (one large area)
+
+Isolate the design of the protected space by holding amount of space constant. Farm treatments have `farmStay = 10` and `buffer = 10`.
+
+Data pulled from runs above.
+
+```{r}
+big1<-shape %>%
+  filter(year>50,
+         farmSize==0)%>%
+  select(-farmSize)%>%
+  mutate(type="farm") %>%
+  bind_rows(.,oaAll%>%
+              filter(run=="mpa") %>%
+              rename(type=run) %>%
+              select(year, biomass, catch,PPUE,type))
+
+bigBm<-ggplot(big1,aes(year,biomass,color=type,group=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+bigCatch<-ggplot(big1,aes(year,catch,color=type,group=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+bigPpue<-ggplot(big1,aes(year,PPUE,color=type,group=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+plot_grid(shpTtl,bigBm,bigCatch,bigPpue,ncol=1,rel_heights = c(0.15,1,1,1))
+
+```
+
+```{r}
+big1ce<-shapeCE %>%
+  filter(year>50,
+         farmSize==0)%>%
+  select(-farmSize)%>%
+  mutate(type="farm") %>%
+  bind_rows(.,ceAll%>%
+              filter(run=="mpa") %>%
+              rename(type=run) %>%
+              select(year, biomass, catch,PPUE,type))
+
+bigBmCE<-ggplot(big1ce,aes(year,biomass,color=type,group=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+bigCatchCE<-ggplot(big1ce,aes(year,catch,color=type,group=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+bigPpueCE<-ggplot(big1ce,aes(year,PPUE,color=type,group=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+plot_grid(shpTtlCE,bigBmCE,bigCatchCE,bigPpueCE,ncol=1,rel_heights = c(0.15,1,1,1))
+```
+
+***
+
+## Testing size of buffer around farm
+
+```{r}
+buffers<-c(0,10,50,100,200)
+```
+
+Here I am varying the size of the buffer around the farm (`r buffers`) and plotting the results with just MPA as well (from data above)
+
+```{r}
+
+fishBuff <-
+  create_fish(
+  scientific_name = "Pollachius virens",
+  query_fishlife = T,
+  mat_mode = "length",
+  time_step = 1,
+  # sigma_r = 0,
+  # steepness = 0.9,
+  # r0 = 4290000,
+  # rec_ac = 0,
+  adult_movement = 20,
+  larval_movement = 20,
+  density_dependence_form = 2 # change to 2 to use the habfactor
+  )
+
+fleetOAbuff <- create_fleet(
+  fish = fishBuff,
+  cost_cv =  0,
+  cost_ac = 0,
+  cost_slope = 0,
+  q_cv = 0,
+  q_ac = .7,
+  q_slope = 0,
+  fleet_model = "open access",
+  sigma_effort = 0,
+  length_50_sel = 0.1 * fishBuff$linf,
+  initial_effort = 10000,
+  profit_lags =  5,
+  beta = 2,
+  max_cr_ratio = 0.9,
+  max_perc_change_f = 0.5,
+  effort_allocation = 'simple',
+  mpa_reaction = "leave"
+)
+
+buff<-data.frame(year=numeric(),
+                 buffSz=numeric(),
+                 biomass=numeric(),
+                 catch=numeric(),
+                 PPUE=numeric())
+
+
+for(i in 1:length(buffers)) {
+  
+  dfB <- sim_fisheryAq(
+    fish = fishBuff,
+    fleet = fleetOAbuff, ### OPEN ACCESS
+    manager = create_manager(mpa_size = 0.2, year_mpa = 50),
+    num_patches = 1000,
+    sim_years = 100,
+    burn_years = 1,
+    time_step = fishBuff$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    mpa_habfactor = 1,
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    bufferMove = 100,
+    buffSize = buffers[i],
+    farmSize = 10,
+    farmStay = 100) %>%
+    group_by(year)%>%
+    summarise(effort=sum(effort),
+            profits=sum(profits),
+            biomass=sum(biomass),
+            catch=sum(numbers_caught)) %>%
+    ungroup()%>%
+    mutate(PPUE=profits/effort,
+           buffSz=buffers[i]) %>%
+    select(year, buffSz, biomass, catch, PPUE)
+  
+  buff<-bind_rows(buff,dfB)
+
+
+}
+
+
+bffBM<-ggplot(buff[buff$year>50,],aes(year,biomass,color=as.factor(buffSz),group=as.factor(buffSz)))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+bffCatch<-ggplot(buff[buff$year>50,],aes(year,catch,color=as.factor(buffSz),group=as.factor(buffSz)))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+bffPPUE<-ggplot(buff[buff$year>50,],aes(year,PPUE,color=as.factor(buffSz),group=as.factor(buffSz)))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+plot_grid(shpTtl,bffBM,bffCatch,bffPPUE,ncol=1,rel_heights = c(0.15,1,1,1))
+```
+
+***
+
+## Testing impacts of mpa_habfactor
+
+```{r}
+farmHF<-c(1,3,5,10,20)
+
+```
+
+*mpa_habfactor* was built into SPASM to adjust the habitat quality within the MPA, compared to outside. I added code to turn the habitat quality on when a farm is installed. I can also add an additional habitat quality (during fallowing) but am not parameterizing for that here.
+
+*farmStay* is held constant at 100 for each run, *habfactor* is varied (`r farmHF`). *farmSize* is also held constant as one large farm (20%)
+
+```{r}
+
+hfDf<-data.frame(year=numeric(),
+                 habFactor=numeric(),
+                 biomass=numeric(), 
+                 catch=numeric(),
+                 PPUE=numeric())
+
+for(i in 1:length(farmHF)){
+  
+  dfHf <- sim_fisheryAq(
+    fish = fishPv,
+    fleet = fleetOA,
+    manager = create_manager(mpa_size = 0.2, year_mpa = 50),
+    num_patches = 100,
+    sim_years = 100,
+    burn_years = 1,
+    time_step = fishPv$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    mpa_habfactor = farmHF[i],
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    bufferMove = 100,
+    farmSize = 0, ### one big farm like mpas, habFac = 1 should be the same as mpa
+    farmStay = 100,
+    farm_yrs = c(50:100)) %>%
+    group_by(year)%>%
+    summarise(effort=sum(effort),
+            profits=sum(profits),
+            biomass=sum(biomass),
+            catch=sum(numbers_caught)) %>%
+    ungroup()%>%
+    mutate(PPUE=profits/effort,
+           habFactor=farmHF[i]) %>%
+    select(year, habFactor,biomass, catch, PPUE)
+
+  hfDf<-bind_rows(hfDf,dfHf)  
+  
+}
+
+habFac<-hfDf %>%
+  filter(year>50)%>%
+  mutate(type="farm") %>%
+  bind_rows(.,oaAll%>%
+              filter(run=="mpa") %>%
+              rename(type=run) %>%
+              #mutate(habFactor==1)%>%
+              select(year, biomass, catch,PPUE,type))
+habFac[is.na(habFac$habFactor),"habFactor"]<-1
+
+
+hfBM<-ggplot(habFac,aes(year,biomass,color=as.factor(habFactor),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+hfCatch<-ggplot(habFac,aes(year,catch,color=as.factor(habFactor),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+hfPPUE<-ggplot(habFac,aes(year,PPUE,color=as.factor(habFactor),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+plot_grid(shpTtl,hfBM,hfCatch,hfPPUE,ncol=1,rel_heights = c(0.15,1,1,1))
+```
+
+####Small farms
+
+
+```{r}
+
+hfsDf<-data.frame(year=numeric(),
+                 habFactor=numeric(),
+                 biomass=numeric(), 
+                 catch=numeric(),
+                 PPUE=numeric())
+
+for(i in 1:length(farmHF)){
+  
+  dfHfs <- sim_fisheryAq(
+    fish = fishPv,
+    fleet = fleetOA,
+    manager = create_manager(mpa_size = 0.2, year_mpa = 50),
+    num_patches = 100,
+    sim_years = 100,
+    burn_years = 1,
+    time_step = fishPv$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    mpa_habfactor = farmHF[i],
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    bufferMove = 100,
+    farmSize = 3, ### farms are small should be more different than above
+    farmStay = 100,
+    farm_yrs = c(50:100)) %>%
+    group_by(year)%>%
+    summarise(effort=sum(effort),
+            profits=sum(profits),
+            biomass=sum(biomass),
+            catch=sum(numbers_caught)) %>%
+    ungroup()%>%
+    mutate(PPUE=profits/effort,
+           habFactor=farmHF[i]) %>%
+    select(year, habFactor,biomass, catch, PPUE)
+
+  hfsDf<-bind_rows(hfsDf,dfHfs)  
+  
+}
+
+habFacS<-hfsDf %>%
+  filter(year>50)%>%
+  mutate(type="farm") %>%
+  bind_rows(.,oaAll%>%
+              filter(run=="mpa") %>%
+              rename(type=run) %>%
+              #mutate(habFactor==1)%>%
+              select(year, biomass, catch,PPUE,type))
+habFacS[is.na(habFacS$habFactor),"habFactor"]<-1
+
+
+hfBMs<-ggplot(habFacS,aes(year,biomass,color=as.factor(habFactor),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+hfCatchS<-ggplot(habFacS,aes(year,catch,color=as.factor(habFactor),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+hfPPUEs<-ggplot(habFacS,aes(year,PPUE,color=as.factor(habFactor),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+plot_grid(shpTtl,hfBMs,hfCatchS,hfPPUEs,ncol=1,rel_heights = c(0.15,1,1,1))
+```
 
 
