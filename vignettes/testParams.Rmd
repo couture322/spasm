@@ -1,7 +1,7 @@
 ---
 title: 'Testing params: sim_fishery vs sim_fisheryAq'
 author: "Jessica Couture"
-date: "August 14, 2019"
+date: "August 19, 2019"
 output:
   pdf_document: default
   html_document: default
@@ -941,7 +941,7 @@ calculate_recruitsFarm <-
           }
 
         # browser()
-        recruits <- if(is.na(farmYrs[pop$year[1]]==0)) {recruits} else {
+        recruits <- if(is.na(farmYrs) | farmYrs[pop$year[1]]==0) {recruits} else {
                         if(farmYrs[pop$year[1]]==1) {
                           recruits * prop_patch_habitat} else {
                             recruits * prop_fallow_habitat}
@@ -977,7 +977,7 @@ calculate_recruitsFarm <-
 
 Testing the impacts of MPA vs farm (compared to no MPA) under constant effort and open access fishery management. The species used here will be a pollock species: Saithe ([*P. virens*](https://www.fishbase.se/summary/Pollachius-virens.html)), which is highly mobile and has commonly been found at high abundances around farms. Most of the biological data I am pulling from fishbase, but movement has been updated to be 5 for adults and juveniles.   
   
-Additionally, distribution and design of farms compared to MPAs is different. Here I simpulate one large MPA compared to several separate farms (farm size defined by the *farmSize* parameter in the `sim_fisheryAq` function). Also need to test the impacts of these orientations on the results.
+Additionally, distribution and design of farms compared to MPAs is different. Here I simulate one large MPA compared to several separate farms (farm size defined by the *farmSize* parameter in the `sim_fisheryAq` function). Below this I also test the impacts of these orientations on the results, impact of buffer size, and add in *mpa_habfactor* in the final plots.
 
 Common parameters include:
 
@@ -1177,7 +1177,7 @@ fleetOA <- create_fleet(
   q_cv = 0,
   q_ac = .7,
   q_slope = 0,
-  fleet_model = "open access",#"constant-effort",
+  fleet_model = "open-access",#"constant-effort",
   sigma_effort = 0,
   length_50_sel = 0.1 * fishPv$linf,
   initial_effort = 10000,
@@ -1200,8 +1200,8 @@ oaNull <- spasm::sim_fishery(
   fleet = fleetOA,
   manager = create_manager(mpa_size = 0, year_mpa = 50),
   num_patches = 100,
-  sim_years = 100,
-  burn_years = 1,
+  sim_years = 75,
+  burn_years = 50,
   time_step = fishPv$time_step,
   est_msy = FALSE,
   random_mpas = FALSE,
@@ -1214,6 +1214,21 @@ oaNull <- spasm::sim_fishery(
 
 #plot_spasm(oaNull, type = "totals", font_size = 12)
 
+### looking at the data
+
+oaNtot<-oaNull %>%
+  group_by(year)%>%
+  mutate(effort=sum(effort),
+          profits=sum(profits),
+          biomass=sum(biomass),
+          catch=sum(numbers_caught)) %>%
+  ungroup()%>%
+  mutate(PPUE=profits/effort)
+
+ggplot(oaNtot,aes(year,effort))+
+  geom_line()+
+  theme_bw()
+
 ```
 
 
@@ -1225,8 +1240,8 @@ oaMPA <- spasm::sim_fishery(
   fleet = fleetOA,
   manager = create_manager(mpa_size = 0.2, year_mpa = 50),
   num_patches = 100,
-  sim_years = 100,
-  burn_years = 1,
+  sim_years = 75,
+  burn_years = 50,
   time_step = fishPv$time_step,
   est_msy = FALSE,
   random_mpas = FALSE,
@@ -1250,8 +1265,8 @@ oaAq <- sim_fisheryAq(
   fleet = fleetOA,
   manager = create_manager(mpa_size = 0.2, year_mpa = 50),
   num_patches = 100,
-  sim_years = 100,
-  burn_years = 1,
+  sim_years = 75,
+  burn_years = 50,
   time_step = fishPv$time_step,
   est_msy = FALSE,
   random_mpas = FALSE,
@@ -1286,7 +1301,7 @@ oaBM<-ggplot(oaAll,aes(year,biomass,color=run,group=run))+
   labs()+
   theme_bw()
 
-oaCatch<-ggplot(oaAll,aes(year,catch,color=run,group=run))+
+oaCatch<-ggplot(oaAll,aes(year,effort,color=run,group=run))+
   geom_line()+
   labs()+
   theme_bw()
@@ -1358,17 +1373,26 @@ for(i in 1:length(frmSzs)) {
 }
 
 
-shpBM<-ggplot(shape[shape$year>50,],aes(year,biomass,color=as.factor(farmSize),group=as.factor(farmSize)))+
+shape<-shape %>%
+  #select(-farmSize)%>%
+  mutate(type="farm") %>%
+  bind_rows(.,oaAll%>%
+              mutate(farmSize=0)%>%
+              filter(run=="mpa") %>%
+              rename(type=run) %>%
+              select(year,farmSize, biomass, catch,PPUE,type))
+
+shpBM<-ggplot(shape[shape$year>50,],aes(year,biomass,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
 
-shpCatch<-ggplot(shape[shape$year>50,],aes(year,catch,color=as.factor(farmSize),group=as.factor(farmSize)))+
+shpCatch<-ggplot(shape[shape$year>50,],aes(year,catch,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
 
-shpPPUE<-ggplot(shape[shape$year>50,],aes(year,PPUE,color=as.factor(farmSize),group=as.factor(farmSize)))+
+shpPPUE<-ggplot(shape[shape$year>50,],aes(year,PPUE,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
@@ -1421,18 +1445,27 @@ for(i in 1:length(frmSzs)) {
 
 }
 
+shapeCE<-shapeCE %>%
+  #select(-farmSize)%>%
+  mutate(type="farm") %>%
+  bind_rows(.,ceAll%>%
+              mutate(farmSize=0)%>%
+              filter(run=="mpa") %>%
+              rename(type=run) %>%
+              select(year,farmSize, biomass, catch,PPUE,type))
 
-shpBMCE<-ggplot(shapeCE[shapeCE$year>50,],aes(year,biomass,color=as.factor(farmSize),group=as.factor(farmSize)))+
+
+shpBMCE<-ggplot(shapeCE[shapeCE$year>50,],aes(year,biomass,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
 
-shpCatchCE<-ggplot(shapeCE[shapeCE$year>50,],aes(year,catch,color=as.factor(farmSize),group=as.factor(farmSize)))+
+shpCatchCE<-ggplot(shapeCE[shapeCE$year>50,],aes(year,catch,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
 
-shpPPUECE<-ggplot(shapeCE[shapeCE$year>50,],aes(year,PPUE,color=as.factor(farmSize),group=as.factor(farmSize)))+
+shpPPUECE<-ggplot(shapeCE[shapeCE$year>50,],aes(year,PPUE,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
@@ -1443,70 +1476,6 @@ plot_grid(shpTtlCE,shpBMCE,shpCatchCE,shpPPUECE,ncol=1,rel_heights = c(0.15,1,1,
 
 ```
 
-### MPA vs farm (one large area)
-
-Isolate the design of the protected space by holding amount of space constant. Farm treatments have `farmStay = 10` and `buffer = 10`.
-
-Data pulled from runs above.
-
-```{r}
-big1<-shape %>%
-  filter(year>50,
-         farmSize==0)%>%
-  select(-farmSize)%>%
-  mutate(type="farm") %>%
-  bind_rows(.,oaAll%>%
-              filter(run=="mpa") %>%
-              rename(type=run) %>%
-              select(year, biomass, catch,PPUE,type))
-
-bigBm<-ggplot(big1,aes(year,biomass,color=type,group=type))+
-  geom_line()+
-  labs()+
-  theme_bw()
-
-bigCatch<-ggplot(big1,aes(year,catch,color=type,group=type))+
-  geom_line()+
-  labs()+
-  theme_bw()
-
-bigPpue<-ggplot(big1,aes(year,PPUE,color=type,group=type))+
-  geom_line()+
-  labs()+
-  theme_bw()
-
-plot_grid(shpTtl,bigBm,bigCatch,bigPpue,ncol=1,rel_heights = c(0.15,1,1,1))
-
-```
-
-```{r}
-big1ce<-shapeCE %>%
-  filter(year>50,
-         farmSize==0)%>%
-  select(-farmSize)%>%
-  mutate(type="farm") %>%
-  bind_rows(.,ceAll%>%
-              filter(run=="mpa") %>%
-              rename(type=run) %>%
-              select(year, biomass, catch,PPUE,type))
-
-bigBmCE<-ggplot(big1ce,aes(year,biomass,color=type,group=type))+
-  geom_line()+
-  labs()+
-  theme_bw()
-
-bigCatchCE<-ggplot(big1ce,aes(year,catch,color=type,group=type))+
-  geom_line()+
-  labs()+
-  theme_bw()
-
-bigPpueCE<-ggplot(big1ce,aes(year,PPUE,color=type,group=type))+
-  geom_line()+
-  labs()+
-  theme_bw()
-
-plot_grid(shpTtlCE,bigBmCE,bigCatchCE,bigPpueCE,ncol=1,rel_heights = c(0.15,1,1,1))
-```
 
 ***
 
@@ -1702,6 +1671,7 @@ plot_grid(shpTtl,hfBM,hfCatch,hfPPUE,ncol=1,rel_heights = c(0.15,1,1,1))
 
 ####Small farms
 
+`farSize = 3`
 
 ```{r}
 

@@ -61,8 +61,13 @@ sim_fisheryAq <-
 
     b0 <- NA
 
-    farmYrs <- c(rep(0,manager$year_mpa),rep(2,sim_years-manager$year_mpa))
-    farmYrs[farm_yrs]<-1
+    if(!is.na(farm_yrs))
+    {
+      farmYrs <- c(rep(0,manager$year_mpa),rep(2,sim_years-manager$year_mpa))
+      farmYrs[farm_yrs]<-1
+    } else {
+      farmYrs <- NA
+    }
 
     #fallowFactor<-fallowFactor
 
@@ -834,17 +839,17 @@ sim_fisheryAq <-
       # if (is.na(spawning_season) | ((((year) - floor(year))/spawning_season) == 1))
       pop$numbers[pop$year == (y + 1) &
                     pop$age == fish$min_age] <-
+        calculate_recruits(
         #calculate_recruitsFarm(
-        calculate_recruitsFarm(
-          farmYrs=farmYrs,
+          #farmYrs=farmYrs,
           pop = pop[pop$year == y, ],
           fish = fish,
           num_patches = num_patches,
           phase = model_phase,
           move_matrix = larval_move_matrix,
           rec_devs = rec_devs[y + 1],
-          patch_habitat = habitat,
-          fallowHab = fallowHab
+          patch_habitat = habitat#,
+          #fallowHab = fallowHab
         )
 
 

@@ -509,6 +509,44 @@ Also changed `farmStay` back to a divisor and add the buffer as multiplier. Fina
 
 ```{r farmBuff}
 
+
+
+          fishP <-
+            create_fish(
+            scientific_name = "Pollachius virens",
+            query_fishlife = T,
+            mat_mode = "length",
+            time_step = 1,
+            # sigma_r = 0,
+            # steepness = 0.9,
+            # r0 = 4290000,
+            # rec_ac = 0,
+            # adult_movement = 7,
+            # larval_movement = 5,
+            density_dependence_form = 2 # change to 2 to use the habfactor
+            )
+          
+          fleetP <- create_fleet(
+            fish = fishP,
+            cost_cv =  0,
+            cost_ac = 0,
+            cost_slope = 0,
+            q_cv = 0,
+            q_ac = .7,
+            q_slope = 0,
+            fleet_model = "constant-effort",
+            sigma_effort = 0,
+            length_50_sel = 0.1 * fishP$linf,
+            initial_effort = 2000,
+            profit_lags =  5,
+            beta = 2,
+            max_cr_ratio = 0.9,
+            max_perc_change_f = 0.5,
+            effort_allocation = 'simple',
+            mpa_reaction = "concentrate" # changed this from "leave" to "concentrate"
+            )
+
+
 stayMoveFunc<-function(fish,fleet,szVec,fsVec,bmVec){
 
   df<-data.frame(year=numeric(),
