@@ -27,7 +27,8 @@ calculate_recruitsFarm <-
            phase = 'burn',
            move_matrix,
            rec_devs = 0) {
-    if (length(patch_habitat) == 1) {
+
+     if (length(patch_habitat) == 1) {
       patch_habitat <- rep(patch_habitat, num_patches)
 
     }

@@ -467,7 +467,7 @@ sim_fisheryAq <-
     #   group_by(source) %>%
     #   mutate(prob_move = prob / sum(prob))
 
-    farm_stay <- rep(1, num_patches)
+    farm_stay <- rep(0, num_patches)
     buffMov<-rep(1,num_patches)
 
     if(!is.na(farmStay)==F){
@@ -573,9 +573,10 @@ sim_fisheryAq <-
           ))  %>%
           group_by(from) %>%
           dplyr::mutate(prob_move = movement / sum(movement))%>%
+          ungroup()%>%
           mutate(farmImpcts=farm_stay,
                  farmBuff=buffMov)%>%
-          mutate(prob_move=prob_move/farmImpcts) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
+          mutate(prob_move=prob_move*10^(farmImpcts)) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
           mutate(prob_move=prob_move*farmBuff)
 
 
