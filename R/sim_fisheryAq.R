@@ -467,14 +467,12 @@ sim_fisheryAq <-
     #   group_by(source) %>%
     #   mutate(prob_move = prob / sum(prob))
 
-    farm_stay <- rep(0, num_patches)
+    farm_stay <- rep(1, num_patches)
     buffMov<-rep(1,num_patches)
 
-    if(!is.na(farmStay)==F){
-      farm_stay[mpa_locations]  <- farmStay}
+    farm_stay[mpa_locations]<-ifelse(is.na(farmStay),1,farmStay)
 
-    if(!is.na(bufferMove)==F){
-      buffMov[bufferLocs]  <- bufferMove}
+    buffMov[bufferLocs]  <- ifelse(is.na(bufferMove),1,bufferMove)
 
     adult_move_grid <-
       expand.grid(from = 1:num_patches, to = 1:num_patches) %>%
@@ -574,14 +572,14 @@ sim_fisheryAq <-
           group_by(from) %>%
           dplyr::mutate(prob_move = movement / sum(movement))%>%
           ungroup()%>%
-          mutate(farmImpcts=farm_stay,
-                 farmBuff=buffMov)%>%
-          mutate(prob_move=prob_move*10^(farmImpcts)) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
-          mutate(prob_move=prob_move*farmBuff)
+          mutate(farmImpcts=farm_stay)%>%#,
+                 #farmBuff=buffMov)%>%
+          mutate(prob_move=prob_move*farmImpcts) #%>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
+          #mutate(prob_move=prob_move/farmBuff)
 
 
         adult_move_matrix <- adult_move_grid %>%
-          ungroup() %>%
+          #ungroup() %>%
           dplyr::select(from, to, prob_move) %>%
           spread(to, prob_move) %>%
           dplyr:: select(-from) %>%

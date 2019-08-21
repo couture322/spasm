@@ -1751,3 +1751,44 @@ plot_grid(shpTtl,hfBMs,hfCatchS,hfPPUEs,ncol=1,rel_heights = c(0.15,1,1,1))
 ```
 
 
+***
+
+# messing with farmStay
+
+```{r farmStayMess}
+
+stayTest <- sim_fisheryAq(
+  fish = fishPv,
+  fleet = fleetOA,
+  manager = create_manager(mpa_size = 0.2, year_mpa = 25),
+  num_patches = 100,
+  sim_years = 100,
+  burn_years = 50,
+  time_step = fishPv$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  farmStay = 10, ##
+  farmSize=5,
+  sprinkler = FALSE,
+  keep_burn = FALSE
+)
+
+stayTest %>% 
+  filter(year == max(year),
+         mpa == TRUE) %>% 
+  group_by(patch) 
+
+plot_spasm(stayTest, type = "totals", font_size = 12)
+
+stayTest%>% 
+  filter(year == max(year)) %>% 
+  group_by(patch) %>% 
+  summarise(biomass = sum(biomass),
+            mpa = unique(mpa)) %>% 
+  ggplot(aes(patch, biomass, fill = mpa)) + 
+  geom_col()
+
+```
+
