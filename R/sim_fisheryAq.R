@@ -45,9 +45,9 @@ sim_fisheryAq <-
            mpa_habfactor = 1,
            farm_yrs = NA,
            fallowFactor = 1,
-           farmStay=1,
-           bufferMove=1,
-           buffSize=0,
+           farmStay=NA,#value of 1 does nothing, higher increases movement to farm
+           #bufferMove=1,
+           buffSize=2,
            sprinkler = FALSE,
            keep_burn = FALSE,
            tune_costs = FALSE) {
@@ -61,15 +61,15 @@ sim_fisheryAq <-
 
     b0 <- NA
 
-    if(!is.na(farm_yrs))
+    farmYrs<-rep(F,sim_years)
+    if(is.na(farm_yrs))
     {
-      farmYrs <- c(rep(0,manager$year_mpa),rep(2,sim_years-manager$year_mpa))
-      farmYrs[farm_yrs]<-1
+      farmYrs[manager$year_mpa:sim_years] <- T
     } else {
-      farmYrs <- NA
+      farmYrs[manager$year_mpa:sim_years] <-farm_years
     }
 
-    #fallowFactor<-fallowFactor
+
 
     if (sprinkler == FALSE & mpa_habfactor == 1){
       burn_years <- 1
@@ -467,13 +467,6 @@ sim_fisheryAq <-
     #   group_by(source) %>%
     #   mutate(prob_move = prob / sum(prob))
 
-    farm_stay <- rep(1, num_patches)
-    buffMov<-rep(1,num_patches)
-
-    farm_stay[mpa_locations]<-ifelse(is.na(farmStay),1,farmStay)
-
-    buffMov[bufferLocs]  <- ifelse(is.na(bufferMove),1,bufferMove)
-
     adult_move_grid <-
       expand.grid(from = 1:num_patches, to = 1:num_patches) %>%
       as.data.frame() %>%
@@ -489,6 +482,7 @@ sim_fisheryAq <-
       ))  %>%
       group_by(from) %>%
       dplyr::mutate(prob_move = movement / sum(movement))
+
 
     adult_move_matrix <- adult_move_grid %>%
       ungroup() %>%
@@ -529,6 +523,17 @@ sim_fisheryAq <-
       dplyr::select(-from) %>%
       as.matrix()
 
+
+##### simulation (post-burn) #####
+
+    farm_stay <- expand.grid(to=mpa_locations,distance=0:buffSize)%>% # limit attraction to areas close (within buffsize) to the farm (each patch of the farm)
+      as.data.frame()%>%
+      mutate(farmImpacts=farmStay) # add the farmStay value, only these will merge into the adult_move_grid df later with the appropriate distances
+
+    #farm_stay$farmImpacts[mpa_locations]<-ifelse(is.na(farmStay),1,farmStay)
+    #buffMov[bufferLocs]  <- ifelse(is.na(bufferMove),1,bufferMove)
+
+
     for (y in 1:(sim_years - 1)) {
       # Move adults
 
@@ -555,6 +560,7 @@ sim_fisheryAq <-
           )) %>%
           select(patch, move_rate)
 
+
         adult_move_grid <-
           expand.grid(from = 1:num_patches, to = 1:num_patches) %>%
           as.data.frame() %>%
@@ -570,32 +576,31 @@ sim_fisheryAq <-
             1
           ))  %>%
           group_by(from) %>%
-          dplyr::mutate(prob_move = movement / sum(movement))%>%
-          ungroup()%>%
-          mutate(farmImpcts=farm_stay)%>%#,
-                 #farmBuff=buffMov)%>%
-          mutate(prob_move=prob_move*farmImpcts) #%>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
+          dplyr::mutate(prob_move = movement / sum(movement))
+
+
+       if((y-burn_years) >= manager$year_mpa){ # apply attractor values just after farm is deployed
+
+          adult_move_grid <- adult_move_grid %>%
+            ungroup()%>%
+            left_join(.,farm_stay)%>% # merge attractor values with the 'to' patches
+            #mutate(farmImpcts=farm_stay)%>%#,
+            #farmBuff=buffMov)%>%
+            mutate(farmImpacts=replace_na(farmImpacts,1),
+                   prob_move=prob_move*farmImpacts) #%>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
           #mutate(prob_move=prob_move/farmBuff)
+
+        }
+
 
 
         adult_move_matrix <- adult_move_grid %>%
-          #ungroup() %>%
+          ungroup() %>%
           dplyr::select(from, to, prob_move) %>%
           spread(to, prob_move) %>%
           dplyr:: select(-from) %>%
           as.matrix()
 
-        # adult_density_modifier <-
-        #   calc_density_gradient(
-        #     pop,
-        #     y,
-        #     num_patches = num_patches,
-        #     density_modifier = fish$density_movement_modifier
-        #   )
-        #
-        # if (any(adult_density_modifier < 0)) {
-        #   browser()
-        # }
       }
 
       if (num_patches > 1) {

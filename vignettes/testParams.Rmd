@@ -1769,7 +1769,7 @@ stayTest <- sim_fisheryAq(
   random_mpas = FALSE,
   min_size = 0.05,
   mpa_habfactor = 1,
-  farmStay = 10, ##
+  farmStay = 100, ##
   farmSize=5,
   sprinkler = FALSE,
   keep_burn = FALSE
@@ -1792,3 +1792,54 @@ stayTest%>%
 
 ```
 
+```{r simFishTests}
+
+test<-sim_fisheryAq(fish=fishPv,
+              fleet=fleetOA,
+              manager=create_manager(mpa_size = 0.2, year_mpa = 3),
+              num_patches = 20,
+              sim_years = 10,
+              burn_years = 1,
+              crashed_pop = 1e-3,
+              random_mpas = F,
+              farmSize=0, # to set regular MPA/farms of a specific size (value is numer of patches, will be distributed evenly along the total area)
+              enviro = NA,
+              enviro_strength = 1,
+              rec_driver = "stochastic",
+              est_msy = F,
+              time_step,
+              max_window = 10,
+              min_size = 1,
+              mpa_habfactor = 1,
+              farm_yrs = NA,
+              fallowFactor = 1,
+              farmStay=5,#value of 1 does nothing, higher increases movement to farm
+              #bufferMove=1,
+              buffSize=3,
+              sprinkler = FALSE,
+              keep_burn = FALSE,
+              tune_costs = FALSE)
+
+# frmSty<-data.frame(to=c(1:20),
+#                    frmImp=c(rep(20,4),rep(1,16)))
+# 
+# test2<-test%>%
+#   left_join(.,frmSty)%>%
+#   mutate(pm2=prob_move*frmImp)
+# 
+# ggplot(test2,aes(distance,pm2,color=frmImp),shape=23)+
+#   geom_jitter()
+# 
+# ggplot(test,aes(distance, prob_move,color=farmImpacts))+
+#   geom_jitter()
+#   
+
+test%>% 
+  filter(year == 5) %>% 
+  group_by(patch) %>% 
+  summarise(biomass = sum(biomass),
+            mpa = unique(mpa)) %>% 
+  ggplot(aes(patch, biomass, fill = mpa)) + 
+  geom_col()
+
+```
