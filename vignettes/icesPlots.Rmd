@@ -1314,7 +1314,11 @@ plot_grid(titleCE,ceBM,ceCatch,ncol=1,rel_heights = c(0.15,1,1))
 ## Testing staying power of the farm: *farmStay*
 
 ```{r stayParams}
+
 frmStay<-seq(1,2,by=0.25)
+
+frmStaySeq<-seq(1,2,by=0.1)
+
 ```
 
 Here I am varying the dampening of adult movement at the farm (`r frmStay`) and plotting the results with a standard MPA and no MPA as well (from data above). *farmSize* is held constant at 3 patches each and *adult_movement* = `r fishPv$adult_movement`.
@@ -1327,7 +1331,7 @@ stay<-data.frame(year=numeric(),
                  catch=numeric())
 
 
-for(i in 1:length(frmStay)) {
+for(i in 1:length(frmStaySeq)) {
   
   dfSt <- sim_fisheryAq(
     fish = fishPv,
@@ -1344,14 +1348,14 @@ for(i in 1:length(frmStay)) {
     sprinkler = FALSE,
     keep_burn = FALSE,
     farmSize = 3,
-    farmStay = frmStay[i],
+    farmStay = frmStaySeq[i],
     buffSize=5) %>%
     group_by(year)%>%
     summarise(effort=sum(effort),
             biomass=sum(biomass),
             catch=sum(numbers_caught)) %>%
     ungroup()%>%
-    mutate(fStay=frmStay[i]) %>%
+    mutate(fStay=frmStaySeq[i]) %>%
     select(year, fStay, biomass, catch)
   
   stay<-bind_rows(stay,dfSt)
@@ -1359,7 +1363,8 @@ for(i in 1:length(frmStay)) {
 }
 
 stay2<-stay %>%
-  filter(year>49)%>%
+  filter(fStay %in% frmStay,
+         year>49)%>%
   mutate(type="farm") %>%
   bind_rows(.,oaAll%>%
               mutate(fStay=1)%>%
@@ -1392,7 +1397,7 @@ stayCE<-data.frame(year=numeric(),
                  catch=numeric())
 
 
-for(i in 1:length(frmStay)) {
+for(i in 1:length(frmStaySeq)) {
   
   dfStCE <- sim_fisheryAq(
     fish = fishPv,
@@ -1409,13 +1414,13 @@ for(i in 1:length(frmStay)) {
     sprinkler = FALSE,
     keep_burn = FALSE,
     farmSize = 3,
-    farmStay = frmStay[i],
+    farmStay = frmStaySeq[i],
     buffSize=5) %>%
     group_by(year)%>%
     summarise(biomass=sum(biomass),
             catch=sum(numbers_caught)) %>%
     ungroup()%>%
-    mutate(fStay=frmStay[i]) %>%
+    mutate(fStay=frmStaySeq[i]) %>%
     select(year, fStay, biomass, catch)
   
   stayCE<-bind_rows(stayCE,dfStCE)
@@ -1423,7 +1428,8 @@ for(i in 1:length(frmStay)) {
 }
 
 stayCE2<-stayCE %>%
-  #filter(year>50)%>%
+  filter(fStay %in% frmStay,
+         year>49)%>%
   mutate(type="farm") %>%
   bind_rows(.,ceAll%>%
               mutate(fStay=1)%>%
@@ -1432,12 +1438,12 @@ stayCE2<-stayCE %>%
               select(year,fStay, biomass, catch,type))%>%
   filter(year>49)
 
-stayBmCe<-ggplot(stayCE2[stayCE2$year<61,],aes(year,biomass,color=as.factor(fStay),linetype=type))+
+stayBmCe<-ggplot(stayCE2,aes(year,biomass,color=as.factor(fStay),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
 
-stayCatchCE<-ggplot(stayCE2[stayCE2$year<61,],aes(year,catch,color=as.factor(fStay),linetype=type))+
+stayCatchCE<-ggplot(stayCE2,aes(year,catch,color=as.factor(fStay),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
@@ -1454,6 +1460,8 @@ plot_grid(titleCE,stayBmCe,stayCatchCE,ncol=1,rel_heights = c(0.15,1,1))
 
 frmSzs<-c(0,1,3,5)
 
+frmSzsSeq<-c(0,seq(1,5,by=0.5))
+
 ```
 
 One large farm versus multiple smaller farms of different sizes. For farms, how does the farm size change the results?  
@@ -1469,7 +1477,7 @@ shape<-data.frame(year=numeric(),
                   PPUE=numeric())
 
 
-for(i in 1:length(frmSzs)) {
+for(i in 1:length(frmSzsSeq)) {
   
   df <- sim_fisheryAq(
     fish = fishPv,
@@ -1485,7 +1493,7 @@ for(i in 1:length(frmSzs)) {
     mpa_habfactor = 1,
     sprinkler = FALSE,
     keep_burn = FALSE,
-    farmSize = frmSzs[i], #####
+    farmSize = frmSzsSeq[i], #####
     farmStay = 1.5,
     buffSize=5) %>%
     group_by(year)%>%
@@ -1495,7 +1503,7 @@ for(i in 1:length(frmSzs)) {
             catch=sum(numbers_caught)) %>%
     ungroup()%>%
     mutate(PPUE=profits/effort,
-           farmSize=frmSzs[i]) %>%
+           farmSize=frmSzsSeq[i]) %>%
     select(year, farmSize, biomass, catch, PPUE)
   
   shape<-bind_rows(shape,df)
@@ -1504,8 +1512,8 @@ for(i in 1:length(frmSzs)) {
 }
 
 
-shape<-shape %>%
-  #select(-farmSize)%>%
+shape2<-shape %>%
+  filter(farmSize %in% frmSzs)%>%
   mutate(type="farm") %>%
   bind_rows(.,oaAll%>%
               mutate(farmSize=0)%>%
@@ -1514,12 +1522,12 @@ shape<-shape %>%
               select(year,farmSize, biomass, catch,type)) %>%
   filter(year>49)
 
-shpBM<-ggplot(shape,aes(year,biomass,color=as.factor(farmSize),linetype=type))+
+shpBM<-ggplot(shape2,aes(year,biomass,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
 
-shpCatch<-ggplot(shape,aes(year,catch,color=as.factor(farmSize),linetype=type))+
+shpCatch<-ggplot(shape2,aes(year,catch,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
@@ -1536,7 +1544,7 @@ shapeCE<-data.frame(year=numeric(),
                   PPUE=numeric())
 
 
-for(i in 1:length(frmSzs)) {
+for(i in 1:length(frmSzsSeq)) {
   
   df <- sim_fisheryAq(
     fish = fishPv,
@@ -1552,7 +1560,7 @@ for(i in 1:length(frmSzs)) {
     mpa_habfactor = 1,
     sprinkler = FALSE,
     keep_burn = FALSE,
-    farmSize = frmSzs[i], #####
+    farmSize = frmSzsSeq[i], #####
     farmStay = 1.5,
     buffSize=5) %>%
     group_by(year)%>%
@@ -1562,7 +1570,7 @@ for(i in 1:length(frmSzs)) {
             catch=sum(numbers_caught)) %>%
     ungroup()%>%
     mutate(PPUE=profits/effort,
-           farmSize=frmSzs[i]) %>%
+           farmSize=frmSzsSeq[i]) %>%
     select(year, farmSize, biomass, catch, PPUE)
   
   shapeCE<-bind_rows(shapeCE,df)
@@ -1570,8 +1578,8 @@ for(i in 1:length(frmSzs)) {
 
 }
 
-shapeCE<-shapeCE %>%
-  #select(-farmSize)%>%
+shapeCE2<-shapeCE %>%
+  filter(farmSize %in% frmSzs)%>%
   mutate(type="farm") %>%
   bind_rows(.,ceAll%>%
               mutate(farmSize=0)%>%
@@ -1581,12 +1589,12 @@ shapeCE<-shapeCE %>%
   filter(year>49)
 
 
-shpBMCE<-ggplot(shapeCE,aes(year,biomass,color=as.factor(farmSize),linetype=type))+
+shpBMCE<-ggplot(shapeCE2,aes(year,biomass,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
 
-shpCatchCE<-ggplot(shapeCE,aes(year,catch,color=as.factor(farmSize),linetype=type))+
+shpCatchCE<-ggplot(shapeCE2,aes(year,catch,color=as.factor(farmSize),linetype=type))+
   geom_line()+
   labs()+
   theme_bw()
@@ -1602,8 +1610,9 @@ plot_grid(titleCE,shpBMCE,shpCatchCE,ncol=1,rel_heights = c(0.15,1,1))
 ```{r moveParams}
 
 popMove<-c(2,5,10,20) 
-
 ## default is 2
+
+popMoveSeq<-seq(1,20,by=1)
 
 ```
 
@@ -1619,9 +1628,9 @@ move<-data.frame(year=numeric(),
                  biomass=numeric(), 
                  catch=numeric())
 
-for(i in 1:length(popMove)){
+for(i in 1:length(popMoveSeq)){
   
-fishPv$adult_movement<-popMove[i]
+fishPv$adult_movement<-popMoveSeq[i]
           
   
   dfmv <- sim_fisheryAq(
@@ -1644,7 +1653,7 @@ fishPv$adult_movement<-popMove[i]
     summarise(biomass=sum(biomass),
               catch=sum(numbers_caught)) %>%
     ungroup()%>%
-    mutate(movePar=popMove[i],
+    mutate(movePar=popMoveSeq[i],
            run="farm") %>%
     select(year, movePar,run,biomass, catch)
   
@@ -1667,7 +1676,7 @@ fishPv$adult_movement<-popMove[i]
     summarise(biomass=sum(biomass),
               catch=sum(numbers_caught)) %>%
     ungroup()%>%
-    mutate(movePar=popMove[i],
+    mutate(movePar=popMoveSeq[i],
            run="noMPA") %>%
     select(year, movePar,run,biomass, catch)
   
@@ -1690,7 +1699,7 @@ fishPv$adult_movement<-popMove[i]
     summarise(biomass=sum(biomass),
               catch=sum(numbers_caught)) %>%
     ungroup()%>%
-    mutate(movePar=popMove[i],
+    mutate(movePar=popMoveSeq[i],
            run="mpa") %>%
     select(year, movePar,run,biomass, catch)
 
@@ -1698,14 +1707,16 @@ fishPv$adult_movement<-popMove[i]
   
 }
 
+move2<-move%>%
+  filter(year>49,
+         movePar %in% popMove)
 
-
-mvBM<-ggplot(move[move$year>49,],aes(year,biomass,color=as.factor(movePar),linetype=run))+
+mvBM<-ggplot(move2,aes(year,biomass,color=as.factor(movePar),linetype=run))+
   geom_line()+
   labs()+
   theme_bw()
 
-mvCatch<-ggplot(move[move$year>49,],aes(year,catch,color=as.factor(movePar),linetype=run))+
+mvCatch<-ggplot(move2,aes(year,catch,color=as.factor(movePar),linetype=run))+
   geom_line()+
   labs()+
   theme_bw()
@@ -1716,15 +1727,15 @@ plot_grid(titleOA,mvBM,mvCatch,ncol=1,rel_heights = c(0.15,1,1))
 
 ```{r mpaMoveOA}
 
-mpaMove<-move%>%
+mpaMove<-move2%>%
   filter(run %in% c("noMPA","mpa"))
 
-mvBMmpa<-ggplot(mpaMove[mpaMove$year>49,],aes(year,biomass,color=as.factor(movePar),linetype=run))+
+mvBMmpa<-ggplot(mpaMove,aes(year,biomass,color=as.factor(movePar),linetype=run))+
   geom_line()+
   labs(title = "MPAs only")+
   theme_bw()
 
-mvCatchmpa<-ggplot(mpaMove[mpaMove$year>49,],aes(year,catch,color=as.factor(movePar),linetype=run))+
+mvCatchmpa<-ggplot(mpaMove,aes(year,catch,color=as.factor(movePar),linetype=run))+
   geom_line()+
   theme_bw()
 
@@ -1741,9 +1752,9 @@ moveCE<-data.frame(year=numeric(),
                  biomass=numeric(), 
                  catch=numeric())
 
-for(i in 1:length(popMove)){
+for(i in 1:length(popMoveSeq)){
   
-fishPv$adult_movement<-popMove[i]
+fishPv$adult_movement<-popMoveSeq[i]
           
   
   dfmv <- sim_fisheryAq(
@@ -1766,7 +1777,7 @@ fishPv$adult_movement<-popMove[i]
     summarise(biomass=sum(biomass),
               catch=sum(numbers_caught)) %>%
     ungroup()%>%
-    mutate(movePar=popMove[i],
+    mutate(movePar=popMoveSeq[i],
            run="farm") %>%
     select(year, movePar,run,biomass, catch)
   
@@ -1789,7 +1800,7 @@ fishPv$adult_movement<-popMove[i]
     summarise(biomass=sum(biomass),
               catch=sum(numbers_caught)) %>%
     ungroup()%>%
-    mutate(movePar=popMove[i],
+    mutate(movePar=popMoveSeq[i],
            run="noMPA") %>%
     select(year, movePar,run,biomass, catch)
   
@@ -1812,7 +1823,7 @@ fishPv$adult_movement<-popMove[i]
     summarise(biomass=sum(biomass),
               catch=sum(numbers_caught)) %>%
     ungroup()%>%
-    mutate(movePar=popMove[i],
+    mutate(movePar=popMoveSeq[i],
            run="mpa") %>%
     select(year, movePar,run,biomass, catch)
 
@@ -1820,17 +1831,60 @@ fishPv$adult_movement<-popMove[i]
   
 }
 
+moveCE2<-moveCE%>%
+  filter(year>49,
+         movePar %in% popMove)
 
-mvBMce<-ggplot(moveCE[moveCE$year>49,],aes(year,biomass,color=as.factor(movePar),linetype=run))+
+mvBMce<-ggplot(moveCE2,aes(year,biomass,color=as.factor(movePar),linetype=run))+
   geom_line()+
   labs()+
   theme_bw()
 
-mvCatchCE<-ggplot(moveCE[moveCE$year>49,],aes(year,catch,color=as.factor(movePar),linetype=run))+
+mvCatchCE<-ggplot(moveCE2,aes(year,catch,color=as.factor(movePar),linetype=run))+
   geom_line()+
   labs()+
   theme_bw()
 
 plot_grid(titleCE,mvBMce,mvCatchCE,ncol=1,rel_heights = c(0.15,1,1))
+```
+
+\pagebreak
+
+# Relative plots
+
+MPA and farm biomass and catches relative to status quo (no farm/MPA). 
+
+```{r sqMpa}
+
+sqBMoa<-sum(oaNull[oaNull$year==max(oaNull$year),"biomass"])
+sqCtchoa<-sum(oaNull[oaNull$year==max(oaNull$year),"numbers_caught"])
+
+mpaBMoa<-sum(oaMPA[oaMPA$year==max(oaMPA$year),"biomass"])
+mpaCtchoa<-sum(oaMPA[oaMPA$year==max(oaMPA$year),"numbers_caught"])
+
+
+```
+
+
+```{r relStay}
+
+stayRoa<-stay %>%
+  filter(year==max(year)) %>%
+  group_by(fStay)%>%
+  summarise(totBm=sum(biomass),
+            totCtch=sum(catch))%>%
+  mutate(relBM=totBm-sqBMoa,
+         relCtch=totCtch-sqCtchoa)
+
+relStayOA<-ggplot(stayRoa,aes(fStay,relBM))+
+  geom_line()+
+  geom_hline(yintercept = 0)+
+  geom_hline(yintercept=sqBMoa-mpaBMoa,linetype=2)+
+  labs(x="farm attraction",y="Biomass relative to status quo (kg)")+
+  xlim(1,2)+
+  theme_bw()
+
+relStayOA
+
 ```
 
