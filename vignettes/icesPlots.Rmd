@@ -1856,35 +1856,306 @@ MPA and farm biomass and catches relative to status quo (no farm/MPA).
 
 ```{r sqMpa}
 
+## Open access values
 sqBMoa<-sum(oaNull[oaNull$year==max(oaNull$year),"biomass"])
 sqCtchoa<-sum(oaNull[oaNull$year==max(oaNull$year),"numbers_caught"])
 
 mpaBMoa<-sum(oaMPA[oaMPA$year==max(oaMPA$year),"biomass"])
 mpaCtchoa<-sum(oaMPA[oaMPA$year==max(oaMPA$year),"numbers_caught"])
 
+## constant effort values
+sqBMCE<-sum(ceNull[ceNull$year==max(ceNull$year),"biomass"])
+sqCtchCE<-sum(ceNull[ceNull$year==max(ceNull$year),"numbers_caught"])
+
+mpaBMCE<-sum(ceMPA[ceMPA$year==max(ceMPA$year),"biomass"])
+mpaCtchCE<-sum(ceMPA[ceMPA$year==max(ceMPA$year),"numbers_caught"])
+
+```
+
+#### Farm stay
+Do we think this is a linear relationship?
+
+```{r relFunc}
+
+
+# relPlot<-function(df,fishing,param){
+#   
+#   sqBM<-if(fishing == "OA"){
+#     sqBMoa
+#     } else {
+#       sqBMCE
+#     }
+#   
+#   sqCh<-if(fishing == "OA"){
+#     sqCtchoa
+#     } else {
+#       sqCtchCE
+#     }
+#   
+#   mpaBM<-if(fishing == "OA"){
+#     mpaBMoa
+#     } else {
+#        mpaBMCE
+#     } 
+# 
+#   mpaCh<-if(fishing == "OA"){
+#     mpaCtchoa
+#     } else {
+#        mpaCtchCE
+#       } 
+#   
+#   tParam <- enquo(param)
+#     #tParam <- ensym(param)
+# 
+#   
+#   relDF<-df %>%
+#     filter(year==max(year)) %>%
+#     group_by(!!tParam)%>%
+#     summarise(totBm=sum(biomass),
+#               totCtch=sum(catch))%>%
+#     mutate(relBM=totBm-sqBM,
+#            relCtch=totCtch-sqCh)%>%
+#     ungroup()
+#   
+#   ### plots
+# 
+#     relPlt_bm<-ggplot(relDF,aes(!!tParam,relBM))+
+#       geom_line()+
+#       geom_hline(yintercept = 0)+
+#       geom_hline(yintercept=sqBM-mpaBM,linetype=2)+
+#       labs(x=param,y="Biomass relative to status quo (kg)",title=fishing)+
+#       theme_bw()
+# 
+#     relPlt_Ctch<-ggplot(relDF,aes(!!tParam,relCtch))+
+#       geom_line()+
+#       geom_hline(yintercept = 0)+
+#       geom_hline(yintercept=sqCh-mpaCh,linetype=2)+
+#       labs(x=param,y="Total catch relative to status quo (kg)")+
+#       theme_bw()
+#     
+#     
+#     relPlt<-plot_grid(relPlt_bm,relPlt_Ctch,ncol=1,rel_heights = c(1.15,1))
+#     return(relPlt)
+# 
+# }
+# 
+# 
+# relPlot(stay2,"OA",param="fStay")
+```
+
+```{r relStayOA}
+
+
+relStayOA<-stay %>%
+    filter(year==max(year)) %>%
+    group_by(fStay)%>%
+    summarise(totBm=sum(biomass),
+              totCtch=sum(catch))%>%
+    mutate(relBM=totBm-sqBMoa,
+           relCtch=totCtch-sqCtchoa)%>%
+    ungroup()
+
+  ### plots
+
+    relStay_bmOA<-ggplot(relStayOA,aes(fStay,relBM))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqBMoa-mpaBMoa,linetype=2)+
+      labs(x="",y="Biomass relative to status quo (kg)",title="Open Access")+
+      theme_bw()
+
+    relStay_CtchOA<-ggplot(relStayOA,aes(fStay,relCtch))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqCtchoa-mpaCtchoa,linetype=2)+
+      labs(x="Farm staying power",y="Total catch relative to status quo (kg)")+
+      theme_bw()
+
+
+relStayOApl<-plot_grid(relStay_bmOA,relStay_CtchOA,ncol=1,rel_heights = c(1.15,1))
+relStayOApl
+
 
 ```
 
 
-```{r relStay}
+```{r relStayCE}
 
-stayRoa<-stay %>%
-  filter(year==max(year)) %>%
-  group_by(fStay)%>%
-  summarise(totBm=sum(biomass),
-            totCtch=sum(catch))%>%
-  mutate(relBM=totBm-sqBMoa,
-         relCtch=totCtch-sqCtchoa)
 
-relStayOA<-ggplot(stayRoa,aes(fStay,relBM))+
-  geom_line()+
-  geom_hline(yintercept = 0)+
-  geom_hline(yintercept=sqBMoa-mpaBMoa,linetype=2)+
-  labs(x="farm attraction",y="Biomass relative to status quo (kg)")+
-  xlim(1,2)+
-  theme_bw()
+relStayCE<-stayCE %>%
+    filter(year==max(year)) %>%
+    group_by(fStay)%>%
+    summarise(totBm=sum(biomass),
+              totCtch=sum(catch))%>%
+    mutate(relBM=totBm-sqBMCE,
+           relCtch=totCtch-sqCtchCE)%>%
+    ungroup()
 
-relStayOA
+  ### plots
+
+    relStay_bmCE<-ggplot(relStayCE,aes(fStay,relBM))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqBMCE-mpaBMCE,linetype=2)+
+      labs(x="",y="Biomass relative to status quo (kg)",title="Constant Effort")+
+      theme_bw()
+
+    relStay_CtchCE<-ggplot(relStayCE,aes(fStay,relCtch))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqCtchCE-mpaCtchCE,linetype=2)+
+      labs(x="Farm staying power",y="Total catch relative to status quo (kg)")+
+      theme_bw()
+
+
+relStayCEpl<-plot_grid(relStay_bmCE,relStay_CtchCE,ncol=1,rel_heights = c(1.15,1))
+relStayCEpl
+
 
 ```
 
+#### Farm size
+
+```{r relSizeOA}
+
+
+relSizeOA<-shape %>%
+    filter(year==max(year)) %>%
+    group_by(farmSize)%>%
+    summarise(totBm=sum(biomass),
+              totCtch=sum(catch))%>%
+    mutate(relBM=totBm-sqBMoa,
+           relCtch=totCtch-sqCtchoa)%>%
+    ungroup()
+
+  ### plots
+
+    relSize_bmOA<-ggplot(relSizeOA,aes(farmSize,relBM))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqBMoa-mpaBMoa,linetype=2)+
+      labs(x="",y="Biomass relative to status quo (kg)",title="Open Access")+
+      theme_bw()
+
+    relSize_CtchOA<-ggplot(relSizeOA,aes(farmSize,relCtch))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqCtchoa-mpaCtchoa,linetype=2)+
+      labs(x="Size of individual farms",y="Total catch relative to status quo (kg)")+
+      theme_bw()
+
+
+relSizeOApl<-plot_grid(relSize_bmOA,relSize_CtchOA,ncol=1,rel_heights = c(1.15,1))
+relSizeOApl
+
+
+```
+
+
+```{r relSizeCE}
+
+
+relSizeCE<-shapeCE %>%
+    filter(year==max(year)) %>%
+    group_by(farmSize)%>%
+    summarise(totBm=sum(biomass),
+              totCtch=sum(catch))%>%
+    mutate(relBM=totBm-sqBMCE,
+           relCtch=totCtch-sqCtchCE)%>%
+    ungroup()
+
+  ### plots
+
+    relSize_bmCE<-ggplot(relSizeCE,aes(farmSize,relBM))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqBMCE-mpaBMCE,linetype=2)+
+      labs(x="",y="Biomass relative to status quo (kg)",title="Constant Effort")+
+      theme_bw()
+
+    relSize_CtchCE<-ggplot(relSizeCE,aes(farmSize,relCtch))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqCtchCE-mpaCtchCE,linetype=2)+
+      labs(x="Size of individual farms",y="Total catch relative to status quo (kg)")+
+      theme_bw()
+
+
+relSizeCEpl<-plot_grid(relSize_bmCE,relSize_CtchCE,ncol=1,rel_heights = c(1.15,1))
+relSizeCEpl
+
+
+```
+
+#### Species movement
+
+```{r relMoveOA}
+
+
+relMoveOA<-move %>%
+    filter(year==max(year)) %>%
+    group_by(movePar)%>%
+    summarise(totBm=sum(biomass),
+              totCtch=sum(catch))%>%
+    mutate(relBM=totBm-sqBMoa,
+           relCtch=totCtch-sqCtchoa)%>%
+    ungroup()
+
+  ### plots
+
+    relMove_bmOA<-ggplot(relMoveOA,aes(movePar,relBM))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqBMoa-mpaBMoa,linetype=2)+
+      labs(x="",y="Biomass relative to status quo (kg)",title="Open Access")+
+      theme_bw()
+
+    relMove_CtchOA<-ggplot(relMoveOA,aes(movePar,relCtch))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqCtchoa-mpaCtchoa,linetype=2)+
+      labs(x="Size of individual farms",y="Total catch relative to status quo (kg)")+
+      theme_bw()
+
+
+relMoveOApl<-plot_grid(relMove_bmOA,relMove_CtchOA,ncol=1,rel_heights = c(1.15,1))
+relMoveOApl
+
+
+```
+
+
+```{r relMoveCE}
+
+
+relMoveCE<-move %>%
+    filter(year==max(year)) %>%
+    group_by(movePar)%>%
+    summarise(totBm=sum(biomass),
+              totCtch=sum(catch))%>%
+    mutate(relBM=totBm-sqBMCE,
+           relCtch=totCtch-sqCtchCE)%>%
+    ungroup()
+
+  ### plots
+
+    relMove_bmCE<-ggplot(relMoveCE,aes(movePar,relBM))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqBMCE-mpaBMCE,linetype=2)+
+      labs(x="",y="Biomass relative to status quo (kg)",title="Constant Effort")+
+      theme_bw()
+
+    relMove_CtchCE<-ggplot(relMoveCE,aes(movePar,relCtch))+
+      geom_line()+
+      geom_hline(yintercept = 0)+
+      geom_hline(yintercept=sqCtchCE-mpaCtchCE,linetype=2)+
+      labs(x="Size of individual farms",y="Total catch relative to status quo (kg)")+
+      theme_bw()
+
+
+relMoveCEpl<-plot_grid(relMove_bmCE,relMove_CtchCE,ncol=1,rel_heights = c(1.15,1))
+relMoveCEpl
+
+
+```
