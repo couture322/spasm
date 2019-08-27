@@ -522,6 +522,12 @@ sim_fisheryAq <-
     #farm_stay$farmImpacts[mpa_locations]<-ifelse(is.na(farmStay),1,farmStay)
     #buffMov[bufferLocs]  <- ifelse(is.na(bufferMove),1,bufferMove)
 
+    edge<-which(diff(mpa_locations)!=1)
+    notLeave <- expand.grid(to=c(mpa_locations[edge]+(1:buffSize),mpa_locations[edge]-(farmSize+(1:buffSize)),max(mpa_locations)+(1:buffSize),mpa_locations[max(edge+1)]-(1:buffSize)),
+                            from=mpa_locations)%>% # limit attraction to areas close (within buffsize) to the farm (each patch of the farm)
+      as.data.frame()%>%
+      mutate(noLve=0.7) ### propensity to STAY
+
 
     for (y in 1:(sim_years - 1)) {
       # Move adults
@@ -573,11 +579,11 @@ sim_fisheryAq <-
           adult_move_grid <- adult_move_grid %>%
             ungroup()%>%
             left_join(.,farm_stay)%>% # merge attractor values with the 'to' patches
-            #mutate(farmImpcts=farm_stay)%>%#,
-            #farmBuff=buffMov)%>%
-            mutate(farmImpacts=replace_na(farmImpacts,1),
-                   prob_move=prob_move*farmImpacts) #%>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
-          #mutate(prob_move=prob_move/farmBuff)
+            left_join(.,notLeave,by=c("to","from"))%>%
+            mutate(farmImpacts=ifelse(is.na(noLve),farmImpacts,noLve),
+                   farmImpacts=replace_na(farmImpacts,1),
+                   prob_move=prob_move*farmImpacts) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
+            select(-noLve)
 
         }
 
@@ -1463,7 +1469,7 @@ plot_grid(titleCE,stayBmCe,stayCatchCE,ncol=1,rel_heights = c(0.15,1,1))
 
 frmSzs<-c(0,1,3,5)
 
-frmSzsSeq<-c(0,1,2,5,10)
+frmSzsSeq<-c(0,1,2,5)
 
 ```
 
@@ -1513,7 +1519,7 @@ for(i in 1:length(frmSzsSeq)) {
 
 }
 
-shapeCE<-shapeCE%>%
+shape<-shape%>%
   mutate(farmSize=replace(farmSize,farmSize==0,10))
 
 shape2<-shape %>%
@@ -1586,7 +1592,7 @@ shapeCE<-shapeCE%>%
   mutate(farmSize=replace(farmSize,farmSize==0,10))
 
 shapeCE2<-shapeCE %>%
-  filter(farmSize %in% frmSzs)%>%
+  #filter(farmSize %in% frmSzs)%>%
   mutate(type="farm") %>%
   bind_rows(.,ceAll%>%
               mutate(farmSize=0)%>%
@@ -2176,3 +2182,51 @@ relMoveCEpl
 
 
 ```
+
+## Attraction and size
+
+```{r attrSize}
+
+attrSz<-expand.grid(attraction=seq(1,2,by=0.05),
+                    size=seq(1,10,by=1)) %>%
+  as_data_frame()%>%
+  mutate(biomass=NA,
+         catch=NA)
+
+
+for(i in 1:nrow(attrSz)){
+  
+  attrSz[i,3:4]<-sim_fisheryAq(
+    fish = fishPv,
+    fleet = fleetOA,
+    manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+    num_patches = 1000,
+    sim_years = 100,
+    burn_years = 50,
+    time_step = fishPv$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    farmSize = as.numeric(attrSz[i,"size"]),
+    farmStay = as.numeric(attrSz[i,"attraction"]),
+    buffSize=3) %>%
+    group_by(year)%>%
+    summarise(biomass=sum(biomass),
+              catch=sum(numbers_caught))%>%
+    ungroup()%>%
+    filter(year==max(year))%>%
+    select(biomass,catch)%>%
+    as_vector()
+  
+}
+
+attrSz<-attrSz%>%
+  mutate(size=replace(size,size==0,10))
+
+ggplot(attrSz,aes(attraction,size,color=biomass))+
+  geom_point(size=2)
+
+```
+
