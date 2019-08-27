@@ -533,6 +533,12 @@ sim_fisheryAq <-
     #farm_stay$farmImpacts[mpa_locations]<-ifelse(is.na(farmStay),1,farmStay)
     #buffMov[bufferLocs]  <- ifelse(is.na(bufferMove),1,bufferMove)
 
+    edge<-which(diff(mpa_locations)!=1)
+    notLeave <- expand.grid(to=c(mpa_locations[edge]+1,mpa_locations[edge]-(farmSize+1),max(mpa_locations)+1,mpa_locations[max(edge+1)]-1),
+                            from=mpa_locations)%>% # limit attraction to areas close (within buffsize) to the farm (each patch of the farm)
+      as.data.frame()%>%
+      mutate(noLve=0.7) ### propensity to STAY
+
 
     for (y in 1:(sim_years - 1)) {
       # Move adults
@@ -584,11 +590,11 @@ sim_fisheryAq <-
           adult_move_grid <- adult_move_grid %>%
             ungroup()%>%
             left_join(.,farm_stay)%>% # merge attractor values with the 'to' patches
-            #mutate(farmImpcts=farm_stay)%>%#,
-            #farmBuff=buffMov)%>%
-            mutate(farmImpacts=replace_na(farmImpacts,1),
-                   prob_move=prob_move*farmImpacts) #%>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
-          #mutate(prob_move=prob_move/farmBuff)
+            left_join(.,notLeave,by=c(to,from))%>%
+            mutate(farmImpacts=ifelse(is.na(noLve,farmImpacts,noLve)),
+                   farmImpacts=replace_na(farmImpacts,1),
+                   prob_move=prob_move*farmImpacts) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
+            select(-noLve)
 
         }
 
