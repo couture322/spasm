@@ -580,9 +580,7 @@ sim_fisheryAq <-
             is.finite(dnorm(distance, 0, move_rate)),
             dnorm(distance, 0, move_rate),
             1
-          ))  %>%
-          group_by(from) %>%
-          dplyr::mutate(prob_move = movement / sum(movement))
+          ))
 
 
        if((y-burn_years) >= manager$year_mpa){ # apply attractor values just after farm is deployed
@@ -593,8 +591,10 @@ sim_fisheryAq <-
             left_join(.,notLeave,by=c("to","from"))%>%
             mutate(farmImpacts=ifelse(is.na(noLve),farmImpacts,noLve),
                    farmImpacts=replace_na(farmImpacts,1),
-                   prob_move=prob_move*farmImpacts) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
-            select(-noLve)
+                   movement=movement*farmImpacts) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
+            select(-noLve)%>%
+            group_by(from) %>%
+            dplyr::mutate(prob_move = movement / sum(movement))
 
         }
 
