@@ -536,10 +536,13 @@ sim_fisheryAq <-
 
     edge<-which(diff(mpa_locations)!=1)
 
-    notLeave <- expand.grid(to=c(mpa_locations[edge]+(1:buffSize),mpa_locations[edge]-(farmSize+(1:buffSize)),max(mpa_locations)+(1:buffSize),mpa_locations[max(edge+1)]-(1:buffSize)),
+    notLeave <- expand.grid(to=c(c(outer(mpa_locations[edge],(1:buffSize),`+`)),c(outer(mpa_locations[edge],(farmSize+(1:buffSize)),`-`)),max(mpa_locations)+(1:buffSize),mpa_locations[max(edge)+1]-(1:buffSize)),
                             from=mpa_locations)%>% # limit attraction to areas close (within buffsize) to the farm (each patch of the farm)
       as.data.frame()%>%
-      mutate(noLve=farmStay) ### propensity to STAY
+      mutate(toFrom=paste(to,from,sep="-"))%>%
+      filter(!duplicated(toFrom))%>%
+      mutate(noLve=farmStay) %>% ### propensity to STAY
+      select(-toFrom)
 
 
     for (y in 1:(sim_years - 1)) {
@@ -609,6 +612,9 @@ sim_fisheryAq <-
         adult_move_matrix <- adult_move_grid %>%
           ungroup() %>%
           dplyr::select(from, to, prob_move) %>%
+          # group_by(to) %>%
+          # mutate(grouped_id = row_number()) %>%
+          # ungroup()%>%
           spread(to, prob_move) %>%
           dplyr:: select(-from) %>%
           as.matrix()
@@ -907,3 +913,4 @@ sim_fisheryAq <-
 
     return(pop)
   }
+

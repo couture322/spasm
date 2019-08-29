@@ -525,10 +525,13 @@ sim_fisheryAq <-
 
     edge<-which(diff(mpa_locations)!=1)
 
-    notLeave <- expand.grid(to=c(mpa_locations[edge]+(1:buffSize),mpa_locations[edge]-(farmSize+(1:buffSize)),max(mpa_locations)+(1:buffSize),mpa_locations[max(edge+1)]-(1:buffSize)),
+    notLeave <- expand.grid(to=c(c(outer(mpa_locations[edge],(1:buffSize),`+`)),c(outer(mpa_locations[edge],(farmSize+(1:buffSize)),`-`)),max(mpa_locations)+(1:buffSize),mpa_locations[max(edge)+1]-(1:buffSize)),
                             from=mpa_locations)%>% # limit attraction to areas close (within buffsize) to the farm (each patch of the farm)
       as.data.frame()%>%
-      mutate(noLve=farmStay) ### propensity to STAY
+      mutate(toFrom=paste(to,from,sep="-"))%>%
+      filter(!duplicated(toFrom))%>%
+      mutate(noLve=farmStay) %>% ### propensity to STAY
+      select(-toFrom)
 
 
     for (y in 1:(sim_years - 1)) {
@@ -598,6 +601,9 @@ sim_fisheryAq <-
         adult_move_matrix <- adult_move_grid %>%
           ungroup() %>%
           dplyr::select(from, to, prob_move) %>%
+          # group_by(to) %>% 
+          # mutate(grouped_id = row_number()) %>%
+          # ungroup()%>%
           spread(to, prob_move) %>%
           dplyr:: select(-from) %>%
           as.matrix()
@@ -1214,7 +1220,8 @@ ceAq <- sim_fisheryAq(
   sprinkler = FALSE,
   keep_burn = FALSE,
   farmSize = 2,
-  farmStay = 1.5,
+  farmAttr = 1.5,
+  farmStay = 0.7,
   buffSize=5) %>%
   mutate(run="farm")
 
@@ -1251,17 +1258,161 @@ plot_grid(titleCE,ceBM,ceCatch,ncol=1,rel_heights = c(0.15,1,1))
 
 ***
 
+## Testing staying power of the farm: *farmAttr*
+
+```{r attrParams}
+
+frmAttr<-seq(1,2,by=0.25)
+
+frmAttrSeq<-seq(1,2,by=0.1)
+
+```
+
+Here I am varying the dampening of adult movement at and around the farm (`r frmAttr`) and plotting the results with a standard MPA and no MPA as well (from data above). *farmSize* is held constant at 2 patches and *farmStay* at 1 for this simulation each and *adult_movement* = `r fishPv$adult_movement`.
+
+```{r attrOA}
+
+attr<-data.frame(year=numeric(),
+                 fAttr=numeric(),
+                 biomass=numeric(),
+                 catch=numeric())
+
+
+for(i in 1:length(frmAttrSeq)) {
+  
+  dfAt <- sim_fisheryAq(
+    fish = fishPv,
+    fleet = fleetOA, ### OPEN ACCESS
+    manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+    num_patches = 100,
+    sim_years = 100,
+    burn_years = 50,
+    time_step = fishPv$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    mpa_habfactor = 1,
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    farmSize = 2,
+    farmAttr = frmAttrSeq[i],
+    farmStay=1,
+    buffSize=5) %>%
+    group_by(year)%>%
+    summarise(effort=sum(effort),
+            biomass=sum(biomass),
+            catch=sum(numbers_caught)) %>%
+    ungroup()%>%
+    mutate(fAttr=frmAttrSeq[i]) %>%
+    select(year, fAttr, biomass, catch)
+  
+  attr<-bind_rows(attr,dfAt)
+
+}
+
+attr2<-attr %>%
+  filter(fAttr %in% frmAttr,
+         year>49)%>%
+  mutate(type="farm") %>%
+  bind_rows(.,oaAll%>%
+              mutate(fAttr=1)%>%
+              filter(run %in% c("mpa","noMPA")) %>%
+              rename(type=run) %>%
+              select(year,fAttr, biomass, catch,type))%>%
+  filter(year>49)
+
+attrBM<-ggplot(attr2,aes(year,biomass,color=as.factor(fAttr),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+attrCatch<-ggplot(attr2,aes(year,catch,color=as.factor(fAttr),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+attrPlt<-plot_grid(titleOA,attrBM,attrCatch,ncol=1,rel_heights = c(0.15,1,1))
+
+attrPlt
+```
+
+
+```{r attrCE}
+
+attrCE<-data.frame(year=numeric(),
+                 fAttr=numeric(),
+                 biomass=numeric(),
+                 catch=numeric())
+
+
+for(i in 1:length(frmAttrSeq)) {
+  
+  dfAtCE <- sim_fisheryAq(
+    fish = fishPv,
+    fleet = fleetCE, ### constant effort
+    manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+    num_patches = 100,
+    sim_years = 100,
+    burn_years = 50,
+    time_step = fishPv$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    mpa_habfactor = 1,
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    farmSize = 2,
+    farmAttr = frmAttrSeq[i],
+    farmStay = 1,
+    buffSize=5) %>%
+    group_by(year)%>%
+    summarise(biomass=sum(biomass),
+            catch=sum(numbers_caught)) %>%
+    ungroup()%>%
+    mutate(fAttr=frmAttrSeq[i]) %>%
+    select(year, fAttr, biomass, catch)
+  
+  attrCE<-bind_rows(attrCE,dfAtCE)
+
+}
+
+attrCE2<-attrCE %>%
+  filter(fAttr %in% frmAttr,
+         year>49)%>%
+  mutate(type="farm") %>%
+  bind_rows(.,ceAll%>%
+              mutate(fAttr=1)%>%
+              filter(run %in% c("mpa","noMPA")) %>%
+              rename(type=run) %>%
+              select(year,fAttr, biomass, catch,type))%>%
+  filter(year>49)
+
+attrBmCe<-ggplot(attrCE2,aes(year,biomass,color=as.factor(fAttr),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+attrCatchCE<-ggplot(attrCE2,aes(year,catch,color=as.factor(fAttr),linetype=type))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+plot_grid(titleCE,attrBmCe,attrCatchCE,ncol=1,rel_heights = c(0.15,1,1))
+```
+
+***
+
 ## Testing staying power of the farm: *farmStay*
 
 ```{r stayParams}
 
-frmStay<-seq(1,2,by=0.25)
+frmStay<-c(0.1,0.25,0.5,0.75,1)
 
-frmStaySeq<-seq(1,2,by=0.1)
+frmStaySeq<-seq(0.1,1,by=0.1)
 
 ```
 
-Here I am varying the dampening of adult movement at and around the farm (`r frmStay`) and plotting the results with a standard MPA and no MPA as well (from data above). *farmSize* is held constant at 2 patches for this simulation each and *adult_movement* = `r fishPv$adult_movement`.
+Here I am varying the dampening of adult movement at and around the farm (`r frmStay`) and plotting the results with a standard MPA and no MPA as well (from data above). *farmSize* is held constant at 2 patches, *farmAttr* at 1 for this simulation each and *adult_movement* = `r fishPv$adult_movement`.
 
 ```{r stayOA}
 
@@ -1289,6 +1440,7 @@ for(i in 1:length(frmStaySeq)) {
     keep_burn = FALSE,
     farmSize = 2,
     farmStay = frmStaySeq[i],
+    farmAttr=1,
     buffSize=5) %>%
     group_by(year)%>%
     summarise(effort=sum(effort),
@@ -1355,6 +1507,7 @@ for(i in 1:length(frmStaySeq)) {
     keep_burn = FALSE,
     farmSize = 2,
     farmStay = frmStaySeq[i],
+    farmAttr=1,
     buffSize=5) %>%
     group_by(year)%>%
     summarise(biomass=sum(biomass),
@@ -1393,7 +1546,6 @@ plot_grid(titleCE,stayBmCe,stayCatchCE,ncol=1,rel_heights = c(0.15,1,1))
 
 ***
 
-
 ## Testing orientation of protected spaces: *farmSize*
 
 ```{r sizeParams}
@@ -1403,6 +1555,8 @@ frmSzs<-c(0,1,3,5)
 frmSzsSeq<-c(0,1,2,5)
 
 ```
+
+
 
 One large farm versus multiple smaller farms of different sizes, MPAs are all one large MPA. 
 Testing: *farmSize* = `r frmSzs`. *farmStay* is held at 1.5 for these runs.
@@ -1434,7 +1588,8 @@ for(i in 1:length(frmSzsSeq)) {
     sprinkler = FALSE,
     keep_burn = FALSE,
     farmSize = frmSzsSeq[i], #####
-    farmStay = 1.5,
+    farmStay = 1,
+    farmAttr = 1,
     buffSize=5) %>%
     group_by(year)%>%
     summarise(effort=sum(effort),
@@ -1502,7 +1657,8 @@ for(i in 1:length(frmSzsSeq)) {
     sprinkler = FALSE,
     keep_burn = FALSE,
     farmSize = frmSzsSeq[i], #####
-    farmStay = 1.5,
+    farmStay = 1,
+    farmAttr = 1,
     buffSize=5) %>%
     group_by(year)%>%
     summarise(effort=sum(effort),
@@ -1592,6 +1748,7 @@ fishPv$adult_movement<-popMoveSeq[i]
     keep_burn = FALSE,
     farmSize = 2,
     farmStay = 1.5,
+    farmAttr = 0.7,
     buffSize=5) %>%
     group_by(year)%>%
     summarise(biomass=sum(biomass),
@@ -1716,6 +1873,7 @@ fishPv$adult_movement<-popMoveSeq[i]
     keep_burn = FALSE,
     farmSize = 2,
     farmStay = 1.5,
+    farmAttr = 0.7,
     buffSize=5) %>%
     group_by(year)%>%
     summarise(biomass=sum(biomass),
@@ -1796,7 +1954,7 @@ plot_grid(titleCE,mvBMce,mvCatchCE,ncol=1,rel_heights = c(0.15,1,1))
 
 # Relative plots
 
-Biomass and catches in MPA and farm scenarios relative to status quo (no farm/MPA) at varying levels of *farmStay*, *farmSize*, and *adult_movement*. 
+Biomass and catches in MPA and farm scenarios relative to status quo (no farm/MPA) at varying levels of *farmAttr*, *farmStay*, *farmSize*, and *adult_movement*. 
 
 ```{r sqMpa}
 
@@ -1816,9 +1974,84 @@ mpaCtchCE<-sum(ceMPA[ceMPA$year==max(ceMPA$year),"numbers_caught"])
 
 ```
 
+#### Farm attraction
+
+Since the farmAttr is included as a muliplier to movement, we get a linear result. *Should* I be using a linear relationship or other? What else could it be?
+
+```{r relAttrOA}
+
+
+relAttrOA<-attr %>%
+    filter(year==max(year)) %>%
+    group_by(fAttr)%>%
+    summarise(totBm=sum(biomass),
+              totCtch=sum(catch))%>%
+    mutate(relBM=totBm-sqBMoa,
+           relCtch=totCtch-sqCtchoa)%>%
+    ungroup()
+
+  ### plots
+
+    relAttr_bmOA<-ggplot(relAttrOA,aes(fAttr,relBM))+
+      geom_line()+
+      geom_hline(yintercept = 0,color="blue")+
+      geom_hline(yintercept=sqBMoa-mpaBMoa,linetype=2)+
+      labs(x="",y="Biomass relative to status quo (kg)",title="Open Access")+
+      theme_bw()
+
+    relAttr_CtchOA<-ggplot(relAttrOA,aes(fAttr,relCtch))+
+      geom_line()+
+      geom_hline(yintercept = 0,color="blue")+
+      geom_hline(yintercept=sqCtchoa-mpaCtchoa,linetype=2)+
+      labs(x="Farm attracting power",y="Total catch relative to status quo (kg)")+
+      theme_bw()
+
+
+relAttrOApl<-plot_grid(relAttr_bmOA,relAttr_CtchOA,ncol=1,rel_heights = c(1.15,1))
+relAttrOApl
+
+
+```
+
+
+```{r relAttrCE}
+
+
+relAttrCE<-attrCE %>%
+    filter(year==max(year)) %>%
+    group_by(fAttr)%>%
+    summarise(totBm=sum(biomass),
+              totCtch=sum(catch))%>%
+    mutate(relBM=totBm-sqBMCE,
+           relCtch=totCtch-sqCtchCE)%>%
+    ungroup()
+
+  ### plots
+
+    relAttr_bmCE<-ggplot(relAttrCE,aes(fAttr,relBM))+
+      geom_line()+
+      geom_hline(yintercept = 0,color="blue")+
+      geom_hline(yintercept=sqBMCE-mpaBMCE,linetype=2)+
+      labs(x="",y="Biomass relative to status quo (kg)",title="Constant Effort")+
+      theme_bw()
+
+    relAttr_CtchCE<-ggplot(relAttrCE,aes(fAttr,relCtch))+
+      geom_line()+
+      geom_hline(yintercept = 0,color="blue")+
+      geom_hline(yintercept=sqCtchCE-mpaCtchCE,linetype=2)+
+      labs(x="Farm attracting power",y="Total catch relative to status quo (kg)")+
+      theme_bw()
+
+
+relAttrCEpl<-plot_grid(relAttr_bmCE,relAttr_CtchCE,ncol=1,rel_heights = c(1.15,1))
+relAttrCEpl
+
+
+```
+
 #### Farm stay
 
-Since the farmStay is included as a muliplier to movement, we get a linear result. *Should* be a linear relationship or other? What else could it be?
+*farmStay* decreases the probability of leaving the farm patches to surrounding patches, with a linear multiplier, should have a linear declining affect.
 
 ```{r relFunc}
 
