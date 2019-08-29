@@ -34,8 +34,9 @@ sim_fisheryAq <-
            mpa_habfactor = 1,
            farm_yrs = NA,
            fallowFactor = 1,
-           farmStay=NA,#value of 1 does nothing, higher increases movement to farm
+           farmAttr=1,#value of 1 does nothing, higher increases movement to farm
            #bufferMove=1,
+           farmStay=NA, # propensity to stay: 1 = no change, <1 means more likely to stay
            buffSize=2,
            sprinkler = FALSE,
            keep_burn = FALSE,
@@ -515,18 +516,19 @@ sim_fisheryAq <-
 
 ##### simulation (post-burn) #####
 
-    farm_stay <- expand.grid(to=mpa_locations,distance=0:buffSize)%>% # limit attraction to areas close (within buffsize) to the farm (each patch of the farm)
+    farm_attr <- expand.grid(to=mpa_locations,distance=0:buffSize)%>% # limit attraction to areas close (within buffsize) to the farm (each patch of the farm)
       as.data.frame()%>%
-      mutate(farmImpacts=farmStay) # add the farmStay value, only these will merge into the adult_move_grid df later with the appropriate distances
+      mutate(farmImpacts=farmAttr) # add the farmAttr value, only these will merge into the adult_move_grid df later with the appropriate distances
 
-    #farm_stay$farmImpacts[mpa_locations]<-ifelse(is.na(farmStay),1,farmStay)
+    #farm_stay$farmImpacts[mpa_locations]<-ifelse(is.na(farmAttr),1,farmAttr)
     #buffMov[bufferLocs]  <- ifelse(is.na(bufferMove),1,bufferMove)
 
     edge<-which(diff(mpa_locations)!=1)
+
     notLeave <- expand.grid(to=c(mpa_locations[edge]+(1:buffSize),mpa_locations[edge]-(farmSize+(1:buffSize)),max(mpa_locations)+(1:buffSize),mpa_locations[max(edge+1)]-(1:buffSize)),
                             from=mpa_locations)%>% # limit attraction to areas close (within buffsize) to the farm (each patch of the farm)
       as.data.frame()%>%
-      mutate(noLve=0.7) ### propensity to STAY
+      mutate(noLve=farmStay) ### propensity to STAY
 
 
     for (y in 1:(sim_years - 1)) {
@@ -569,22 +571,26 @@ sim_fisheryAq <-
             is.finite(dnorm(distance, 0, move_rate)),
             dnorm(distance, 0, move_rate),
             1
-          ))  %>%
-          group_by(from) %>%
-          dplyr::mutate(prob_move = movement / sum(movement))
+          ))
 
 
        if((y-burn_years) >= manager$year_mpa){ # apply attractor values just after farm is deployed
 
           adult_move_grid <- adult_move_grid %>%
             ungroup()%>%
-            left_join(.,farm_stay)%>% # merge attractor values with the 'to' patches
+            left_join(.,farm_attr)%>% # merge attractor values with the 'to' patches
             left_join(.,notLeave,by=c("to","from"))%>%
             mutate(farmImpacts=ifelse(is.na(noLve),farmImpacts,noLve),
                    farmImpacts=replace_na(farmImpacts,1),
-                   prob_move=prob_move*farmImpacts) %>% ## adjust 'prob_move' by 'farm_stay'; increase probabilty that move FROM farm locations
-            select(-noLve)
+                   movement=movement*farmImpacts) %>% ## adjust 'prob_move' by 'farm_attr'; increase probabilty that move FROM farm locations
+            select(-noLve)%>%
+            group_by(from) %>%
+            dplyr::mutate(prob_move = movement / sum(movement))
 
+       } else {
+          adult_move_grid <- adult_move_grid%>%
+            group_by(from) %>%
+            dplyr::mutate(prob_move = movement / sum(movement))
         }
 
 
@@ -893,101 +899,6 @@ sim_fisheryAq <-
 
 ###################################################################################################
 
-calculate_recruitsFarm <-
-  function(farmYrs,
-           pop,
-           fish,
-           num_patches,
-           patch_habitat = 1,
-           fallowHab,
-           phase = 'burn',
-           move_matrix,
-           rec_devs = 0) {
-    if (length(patch_habitat) == 1) {
-      patch_habitat <- rep(patch_habitat, num_patches)
-
-    }
-    prop_patch_habitat <- ((patch_habitat / sum(patch_habitat)))
-
-    prop_fallow_habitat <- ((fallowHab / sum(fallowHab)))
-
-    r0s <-
-      rep(fish$r0, num_patches) * prop_patch_habitat
-
-    # ssb0s <- rep(fish$ssb0, num_patches) * ((patch_habitat / sum(patch_habitat)))
-
-    ssb0s <- fish$ssb0
-
-
-    if (phase == 'burn') {
-      recruits <-
-        rep(fish$r0, num_patches)
-      if (fish$density_dependence_form != 2){
-
-        recruits <- crossprod(recruits, move_matrix)
-
-      }
-
-    } else {
-      if (fish$density_dependence_form == 1) {
-        # Recruitment is independent in each area, but a fraction of the recruits in each area drift to the adjacent areas before settling
-        recruits <- pop %>%
-          dplyr::group_by(patch) %>%
-          dplyr::summarise(ssb = sum(ssb)) %>%
-          dplyr::mutate(recruits = (0.8 * r0s * fish$steepness * ssb) / (
-            0.2 * ssb0s * (1 - fish$steepness) +
-              (fish$steepness - 0.2) * ssb
-          )) %>% {
-            .$recruits
-          }
-
-        recruits <- crossprod(recruits, move_matrix)
-
-      }
-      if (fish$density_dependence_form == 2) {
-        # Density dependence occurs at the regional level and then recruits move
-
-        recruits <- pop %>%
-          dplyr::summarise(ssb = sum(ssb)) %>%
-          dplyr::mutate(recruits = (0.8 * sum(r0s) * fish$steepness * ssb) / (
-            0.2 * sum(fish$ssb0) * (1 - fish$steepness) +
-              (fish$steepness - 0.2) * ssb
-          )) %>% {
-            .$recruits
-          }
-
-        # browser()
-        recruits <- if(is.na(farmYrs) | farmYrs[pop$year[1]]==0) {recruits} else {
-                        if(farmYrs[pop$year[1]]==1) {
-                          recruits * prop_patch_habitat} else {
-                            recruits * prop_fallow_habitat}
-
-        # recruits <- crossprod(recruits, move_matrix)
-
-      }
-  }
-      if (fish$density_dependence_form == 3) {
-        #larvae are distributed to each area, and then density dependence occurs based on the number of spawners in each area
-
-        ssb <- pop %>%
-          dplyr::group_by(patch) %>%
-          dplyr::summarise(ssb = sum(ssb))
-
-        larvae <- crossprod(ssb$ssb, move_matrix)
-
-        recruits <- (0.8 * r0s * fish$steepness * larvae) / (
-          0.2 * ssb0s * (1 - fish$steepness) +
-            (fish$steepness - 0.2) * larvae)
-
-      }
-
-    }
-    recruits <- recruits * exp(rec_devs - fish$sigma_r^2/2);
-
-    return(recruits)
-
-  }
-
 ```
 
 
@@ -1148,18 +1059,38 @@ oaAq <- sim_fisheryAq(
   sprinkler = FALSE,
   keep_burn = FALSE,
   farmSize = 2,
-  farmStay = 1.5,
+  farmAttr = 1.5,
+  farmStay=1,
   buffSize=5) %>%
   mutate(run="farm")
 
 #plot_spasm(oaAq, type = "totals", font_size = 12)
 
+oaAqStay <- sim_fisheryAq(
+  fish = fishPv,
+  fleet = fleetOA,
+  manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+  num_patches = 100,
+  sim_years = 100,
+  burn_years = 50,
+  time_step = fishPv$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE,
+  farmSize = 2,
+  farmAttr = 1.5,
+  farmStay=0.7,
+  buffSize=5) %>%
+  mutate(run="farmWStay")
 
 ```
 
 ```{r oaAll}
 
-oaAll<-bind_rows(oaNull,oaMPA,oaAq)%>%
+oaAll<-bind_rows(oaNull,oaMPA,oaAq,oaAqStay)%>%
   group_by(year,run)%>%
   summarise(biomass=sum(biomass),
             catch=sum(numbers_caught)) %>%
@@ -2187,46 +2118,46 @@ relMoveCEpl
 
 ```{r attrSize}
 
-attrSz<-expand.grid(attraction=seq(1,2,by=0.05),
-                    size=seq(1,10,by=1)) %>%
-  as_data_frame()%>%
-  mutate(biomass=NA,
-         catch=NA)
-
-
-for(i in 1:nrow(attrSz)){
-  
-  attrSz[i,3:4]<-sim_fisheryAq(
-    fish = fishPv,
-    fleet = fleetOA,
-    manager = create_manager(mpa_size = 0.1, year_mpa = 50),
-    num_patches = 1000,
-    sim_years = 100,
-    burn_years = 50,
-    time_step = fishPv$time_step,
-    est_msy = FALSE,
-    random_mpas = FALSE,
-    min_size = 0.05,
-    sprinkler = FALSE,
-    keep_burn = FALSE,
-    farmSize = as.numeric(attrSz[i,"size"]),
-    farmStay = as.numeric(attrSz[i,"attraction"]),
-    buffSize=3) %>%
-    group_by(year)%>%
-    summarise(biomass=sum(biomass),
-              catch=sum(numbers_caught))%>%
-    ungroup()%>%
-    filter(year==max(year))%>%
-    select(biomass,catch)%>%
-    as_vector()
-  
-}
-
-attrSz<-attrSz%>%
-  mutate(size=replace(size,size==0,10))
-
-ggplot(attrSz,aes(attraction,size,color=biomass))+
-  geom_point(size=2)
+# attrSz<-expand.grid(attraction=seq(1,2,by=0.05),
+#                     size=seq(1,10,by=1)) %>%
+#   as_data_frame()%>%
+#   mutate(biomass=NA,
+#          catch=NA)
+# 
+# 
+# for(i in 1:nrow(attrSz)){
+#   
+#   attrSz[i,3:4]<-sim_fisheryAq(
+#     fish = fishPv,
+#     fleet = fleetOA,
+#     manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+#     num_patches = 1000,
+#     sim_years = 100,
+#     burn_years = 50,
+#     time_step = fishPv$time_step,
+#     est_msy = FALSE,
+#     random_mpas = FALSE,
+#     min_size = 0.05,
+#     sprinkler = FALSE,
+#     keep_burn = FALSE,
+#     farmSize = as.numeric(attrSz[i,"size"]),
+#     farmStay = as.numeric(attrSz[i,"attraction"]),
+#     buffSize=3) %>%
+#     group_by(year)%>%
+#     summarise(biomass=sum(biomass),
+#               catch=sum(numbers_caught))%>%
+#     ungroup()%>%
+#     filter(year==max(year))%>%
+#     select(biomass,catch)%>%
+#     as_vector()
+#   
+# }
+# 
+# attrSz<-attrSz%>%
+#   mutate(size=replace(size,size==0,10))
+# 
+# ggplot(attrSz,aes(attraction,size,color=biomass))+
+#   geom_point(size=2)
 
 ```
 
