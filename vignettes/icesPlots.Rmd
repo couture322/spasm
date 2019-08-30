@@ -973,13 +973,13 @@ fleetOA <- create_fleet(
   q_slope = 0,
   fleet_model = "open-access",#"constant-effort",
   sigma_effort = 0,
-  length_50_sel = 0.1 * fishPv$linf,
+  length_50_sel = 0.5 * fishPv$linf,
   initial_effort = 10000,
-  profit_lags =  5,
+  profit_lags =  1,
   beta = 2,
   max_cr_ratio = 0.9,
   max_perc_change_f = 0.5,
-  effort_allocation = 'simple',
+  effort_allocation = 'gravity',
   mpa_reaction = "concentrate"
 )
 
@@ -1026,10 +1026,10 @@ oaNull <- spasm::sim_fishery(
 
 ```{r oaMPA}
 ### Standard MPA
-oaMPA <- spasm::sim_fishery(
+oaMPA10 <- spasm::sim_fishery(
   fish = fishPv,
   fleet = fleetOA,
-  manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+  manager = create_manager(mpa_size = 0.2, year_mpa = 50),
   num_patches = 100,
   sim_years = 100,
   burn_years = 50,
@@ -1041,9 +1041,26 @@ oaMPA <- spasm::sim_fishery(
   sprinkler = FALSE,
   keep_burn = FALSE
 )%>%
-  mutate(run="mpa")
+  mutate(run="mpa10")
 
-#plot_spasm(oaMPA, type = "totals", font_size = 12)
+plot_spasm(oaMPA10, type = "totals", font_size = 12)
+
+oaMPA15 <- spasm::sim_fishery(
+  fish = fishPv,
+  fleet = fleetOA,
+  manager = create_manager(mpa_size = 0.15, year_mpa = 50),
+  num_patches = 100,
+  sim_years = 100,
+  burn_years = 50,
+  time_step = fishPv$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE
+)%>%
+  mutate(run="mpa15")
 
 ```
 
@@ -1092,14 +1109,36 @@ oaAqStay <- sim_fisheryAq(
   buffSize=5) %>%
   mutate(run="farmWStay")
 
+oaAqStay2 <- sim_fisheryAq(
+  fish = fishPv,
+  fleet = fleetOA,
+  manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+  num_patches = 100,
+  sim_years = 100,
+  burn_years = 50,
+  time_step = fishPv$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE,
+  farmSize = 2,
+  farmAttr = 2,
+  farmStay=0.7,
+  buffSize=5) %>%
+  mutate(run="farmWStay2")
+
 ```
 
 ```{r oaAll}
 
-oaAll<-bind_rows(oaNull,oaMPA,oaAq,oaAqStay)%>%
+oaAll<-bind_rows(oaNull,oaMPA10,oaMPA15,oaAq,oaAqStay,oaAqStay2)%>%
+  mutate(ppue=profits/effort)%>%
   group_by(year,run)%>%
   summarise(biomass=sum(biomass),
-            catch=sum(numbers_caught)) %>%
+            catch=sum(numbers_caught),
+            ppue=sum(ppue)) %>%
   ungroup()
 
 oaBM<-ggplot(oaAll[oaAll$year>49,],aes(year,biomass,color=run,group=run))+
@@ -1111,6 +1150,12 @@ oaCatch<-ggplot(oaAll[oaAll$year>49,],aes(year,catch,color=run,group=run))+
   geom_line()+
   labs()+
   theme_bw()
+
+oaPpue<-ggplot(oaAll[oaAll$year>49,],aes(year,ppue,color=run,group=run))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
 
 titleOA<-ggdraw()+draw_label("Open access")
 
@@ -1144,7 +1189,7 @@ fleetCE <- create_fleet(
   beta = 2,
   max_cr_ratio = 0.9,
   max_perc_change_f = 0.5,
-  effort_allocation = 'simple',
+  effort_allocation = 'gravity',
   mpa_reaction = "concentrate"
 )
 
@@ -1264,7 +1309,7 @@ plot_grid(titleCE,ceBM,ceCatch,ncol=1,rel_heights = c(0.15,1,1))
 
 frmAttr<-seq(1,2,by=0.25)
 
-frmAttrSeq<-seq(1,2,by=0.1)
+frmAttrSeq<-seq(1,5,by=1)
 
 ```
 
@@ -1311,12 +1356,12 @@ for(i in 1:length(frmAttrSeq)) {
 }
 
 attr2<-attr %>%
-  filter(fAttr %in% frmAttr,
-         year>49)%>%
+  #filter(fAttr %in% frmAttr,
+        # year>49)%>%
   mutate(type="farm") %>%
   bind_rows(.,oaAll%>%
               mutate(fAttr=1)%>%
-              filter(run %in% c("mpa","noMPA")) %>%
+              filter(run %in% c("mpa10","mpa15","noMPA")) %>%
               rename(type=run) %>%
               select(year,fAttr, biomass, catch,type))%>%
   filter(year>49)
