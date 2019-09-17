@@ -940,13 +940,14 @@ fishPv <-
   mat_mode = "length",
   time_step = 1,
   # sigma_r = 0,
-  # steepness = 0.9,
+  steepness = 0.6,
   # r0 = 4290000,
   # rec_ac = 0,
-  adult_movement = 10,
+  adult_movement = 2,
   larval_movement = 5,
-  density_dependence_form = 2, # change to 2 to use the habfactor
-  density_movement_modifier = 0.9
+  density_dependence_form = 1, # change to 2 to use the habfactor
+  density_movement_modifier = 0.9,
+  price = 100000
   )
           
 fishPv$common_name<-"Saithe"
@@ -960,11 +961,103 @@ head(fishPv)
 Open access, *leave* when MPA takes effect
 
 
+```{r oaTesting}
+
+fleetOAt <- create_fleet(
+  fish = fishPv,
+  cost = 0.1,
+  cost_cv =  0,
+  cost_ac = 0,
+  cost_slope = 0,
+  q_cv = 0,
+  q_ac = .7,
+  q_slope = 0,
+  fleet_model = "open-access",#"constant-effort",
+  sigma_effort = 0,
+  length_50_sel = 0.2 * fishPv$linf,
+  initial_effort = 10000,
+  profit_lags =  1,
+  beta = 2,
+  max_cr_ratio = 0.9,
+  max_perc_change_f = 0.5,
+  effort_allocation = 'profit-gravity',
+  mpa_reaction = "concentrate"
+)
+
+oaNullT <- spasm::sim_fishery(
+  fish = fishPv,
+  fleet = fleetOA,
+  manager = create_manager(mpa_size = 0, year_mpa = 100),
+  num_patches = 100,
+  sim_years = 200,
+  burn_years = 50,
+  time_step = fishPv$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE)%>%
+  mutate(run="noMPA")
+
+oaMPAt <- spasm::sim_fishery(
+  fish = fishPv,
+  fleet = fleetOA,
+  manager = create_manager(mpa_size = 0.1, year_mpa = 100),
+  num_patches = 100,
+  sim_years = 200,
+  burn_years = 50,
+  time_step = fishPv$time_step,
+  est_msy = FALSE,
+  random_mpas = FALSE,
+  #min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE
+)%>%
+  mutate(run="MPA")
+
+
+### format and plot
+
+oaTEST<-bind_rows(oaNullT,oaMPAt)%>%
+  mutate(ppue=profits/effort)%>%
+  group_by(year,run)%>%
+  summarise(biomass=sum(biomass),
+            catch=sum(numbers_caught),
+            ppue=sum(ppue)) %>%
+  ungroup()
+
+oaBMt<-ggplot(oaTEST[oaTEST$year>49,],aes(year,biomass,color=run,group=run))+
+  geom_line()+
+  scale_color_brewer(palette="Dark2")+
+  labs(y="Biomass (MT)")+
+  theme_bw()+ theme(legend.title = element_blank())
+
+oaCatchT<-ggplot(oaTEST[oaTEST$year>49,],aes(year,catch,color=run,group=run))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+oaPpueT<-ggplot(oaTEST[oaTEST$run=="MPA",],aes(year,ppue,color=run,group=run))+
+  geom_line()+
+  labs()+
+  theme_bw()
+
+
+plot_grid(titleOA,oaPpueT,oaBMt,oaCatchT,ncol=1,rel_heights = c(0.15,1,1,1))
+
+
+```
+
+
+
 ```{r openAccess, echo=TRUE}
 
 
 fleetOA <- create_fleet(
   fish = fishPv,
+  #cost = 0.00001,
   cost_cv =  0,
   cost_ac = 0,
   cost_slope = 0,
@@ -979,7 +1072,7 @@ fleetOA <- create_fleet(
   beta = 2,
   max_cr_ratio = 0.9,
   max_perc_change_f = 0.5,
-  effort_allocation = 'gravity',
+  effort_allocation = 'profit-gravity',
   mpa_reaction = "concentrate"
 )
 
@@ -992,9 +1085,9 @@ fleetOA <- create_fleet(
 oaNull <- spasm::sim_fishery(
   fish = fishPv,
   fleet = fleetOA,
-  manager = create_manager(mpa_size = 0, year_mpa = 50),
+  manager = create_manager(mpa_size = 0, year_mpa = 100),
   num_patches = 100,
-  sim_years = 100,
+  sim_years = 200,
   burn_years = 50,
   time_step = fishPv$time_step,
   est_msy = FALSE,
@@ -1002,8 +1095,7 @@ oaNull <- spasm::sim_fishery(
   min_size = 0.05,
   mpa_habfactor = 1,
   sprinkler = FALSE,
-  keep_burn = FALSE
-)%>%
+  keep_burn = FALSE)%>%
   mutate(run="noMPA")
 
 #plot_spasm(oaNull, type = "totals", font_size = 12)
@@ -1029,19 +1121,19 @@ oaNull <- spasm::sim_fishery(
 oaMPA10 <- spasm::sim_fishery(
   fish = fishPv,
   fleet = fleetOA,
-  manager = create_manager(mpa_size = 0.2, year_mpa = 50),
+  manager = create_manager(mpa_size = 0.1, year_mpa = 50),
   num_patches = 100,
   sim_years = 100,
   burn_years = 50,
   time_step = fishPv$time_step,
   est_msy = FALSE,
   random_mpas = FALSE,
-  min_size = 0.05,
+  #min_size = 0.05,
   mpa_habfactor = 1,
   sprinkler = FALSE,
   keep_burn = FALSE
 )%>%
-  mutate(run="mpa10")
+  mutate(run="MPA")
 
 plot_spasm(oaMPA10, type = "totals", font_size = 12)
 
@@ -1058,8 +1150,7 @@ oaMPA15 <- spasm::sim_fishery(
   min_size = 0.05,
   mpa_habfactor = 1,
   sprinkler = FALSE,
-  keep_burn = FALSE
-)%>%
+  keep_burn = FALSE)%>%
   mutate(run="mpa15")
 
 ```
@@ -1067,25 +1158,26 @@ oaMPA15 <- spasm::sim_fishery(
 
 ```{r oaAq}
 ## Aquaculture
-oaAq <- sim_fisheryAq(
-  fish = fishPv,
-  fleet = fleetOA,
-  manager = create_manager(mpa_size = 0.1, year_mpa = 50),
-  num_patches = 100,
-  sim_years = 100,
-  burn_years = 50,
-  time_step = fishPv$time_step,
-  est_msy = FALSE,
-  random_mpas = FALSE,
-  min_size = 0.05,
-  mpa_habfactor = 1,
-  sprinkler = FALSE,
-  keep_burn = FALSE,
-  farmSize = 2,
-  farmAttr = 1.5,
-  farmStay=1,
-  buffSize=5) %>%
-  mutate(run="farm")
+# oaAq <- sim_fisheryAq(
+#   fish = fishPv,
+#   fleet = fleetOA,
+#   manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+#   num_patches = 100,
+#   sim_years = 100,
+#   burn_years = 50,
+#   time_step = fishPv$time_step,
+#   est_msy = FALSE,
+#   random_mpas = FALSE,
+#   min_size = 0.05,
+#   mpa_habfactor = 1,
+#   sprinkler = FALSE,
+#   keep_burn = FALSE,
+#   farmSize = 2,
+#   farmAttr = 1.5,
+#   farmStay=1,
+#   buffSize=5,
+#   tune_costs = TRUE) %>%
+#   mutate(run="farm")
 
 #plot_spasm(oaAq, type = "totals", font_size = 12)
 
@@ -1109,31 +1201,31 @@ oaAqStay <- sim_fisheryAq(
   buffSize=5) %>%
   mutate(run="farmWStay")
 
-oaAqStay2 <- sim_fisheryAq(
-  fish = fishPv,
-  fleet = fleetOA,
-  manager = create_manager(mpa_size = 0.1, year_mpa = 50),
-  num_patches = 100,
-  sim_years = 100,
-  burn_years = 50,
-  time_step = fishPv$time_step,
-  est_msy = FALSE,
-  random_mpas = FALSE,
-  min_size = 0.05,
-  mpa_habfactor = 1,
-  sprinkler = FALSE,
-  keep_burn = FALSE,
-  farmSize = 2,
-  farmAttr = 2,
-  farmStay=0.7,
-  buffSize=5) %>%
-  mutate(run="farmWStay2")
+# oaAqStay2 <- sim_fisheryAq(
+#   fish = fishPv,
+#   fleet = fleetOA,
+#   manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+#   num_patches = 100,
+#   sim_years = 100,
+#   burn_years = 50,
+#   time_step = fishPv$time_step,
+#   est_msy = FALSE,
+#   random_mpas = FALSE,
+#   min_size = 0.05,
+#   mpa_habfactor = 1,
+#   sprinkler = FALSE,
+#   keep_burn = FALSE,
+#   farmSize = 2,
+#   farmAttr = 2,
+#   farmStay=0.7,
+#   buffSize=5) %>%
+#   mutate(run="farmWStay2")
 
 ```
 
 ```{r oaAll}
 
-oaAll<-bind_rows(oaNull,oaMPA10,oaMPA15,oaAq,oaAqStay,oaAqStay2)%>%
+oaAll<-bind_rows(oaNull,oaMPA10,oaMPA15,oaAqStay)%>%
   mutate(ppue=profits/effort)%>%
   group_by(year,run)%>%
   summarise(biomass=sum(biomass),
@@ -1143,15 +1235,16 @@ oaAll<-bind_rows(oaNull,oaMPA10,oaMPA15,oaAq,oaAqStay,oaAqStay2)%>%
 
 oaBM<-ggplot(oaAll[oaAll$year>49,],aes(year,biomass,color=run,group=run))+
   geom_line()+
-  labs()+
-  theme_bw()
+  scale_color_brewer(palette="Dark2")+
+  labs(y="Biomass (MT)")+
+  theme_bw()+ theme(legend.title = element_blank())
 
 oaCatch<-ggplot(oaAll[oaAll$year>49,],aes(year,catch,color=run,group=run))+
   geom_line()+
   labs()+
   theme_bw()
 
-oaPpue<-ggplot(oaAll[oaAll$year>49,],aes(year,ppue,color=run,group=run))+
+oaPpue<-ggplot(oaAll,aes(year,ppue,color=run,group=run))+
   geom_line()+
   labs()+
   theme_bw()
@@ -1209,7 +1302,7 @@ ceNull <- spasm::sim_fishery(
   sim_years = 100,
   burn_years = 50,
   time_step = fishPv$time_step,
-  est_msy = FALSE,
+  est_msy = TRUE,
   random_mpas = FALSE,
   min_size = 0.05,
   mpa_habfactor = 1,
@@ -1218,7 +1311,7 @@ ceNull <- spasm::sim_fishery(
 )%>%
   mutate(run="noMPA")
 
-#plot_spasm(ceNull, type = "totals", font_size = 12)
+plot_spasm(ceNull, type = "totals", font_size = 12)
 
 ```
 
@@ -1234,7 +1327,7 @@ ceMPA <- spasm::sim_fishery(
   sim_years = 100,
   burn_years = 50,
   time_step = fishPv$time_step,
-  est_msy = FALSE,
+  est_msy = TRUE,
   random_mpas = FALSE,
   min_size = 0.05,
   mpa_habfactor = 1,
@@ -1258,7 +1351,7 @@ ceAq <- sim_fisheryAq(
   sim_years = 100,
   burn_years = 50,
   time_step = fishPv$time_step,
-  est_msy = FALSE,
+  est_msy = TRUE,
   random_mpas = FALSE,
   min_size = 0.05,
   mpa_habfactor = 1,
@@ -1298,6 +1391,144 @@ ceCatch<-ggplot(ceAll[ceAll$year>49,],aes(year,catch,color=run,group=run))+
 titleCE<-ggdraw()+draw_label("Constant Effort")
 
 plot_grid(titleCE,ceBM,ceCatch,ncol=1,rel_heights = c(0.15,1,1))
+
+```
+
+***
+
+## Quota management  
+
+Constant Yield, effort concentrates when MPA takes 
+
+
+```{r constYld, echo=TRUE}
+
+
+fleetCY <- create_fleet(
+  fish = fishPv,
+  cost_cv =  0,
+  cost_ac = 0,
+  cost_slope = 0,
+  q_cv = 0,
+  q_ac = .7,
+  q_slope = 0,
+  fleet_model = "constant-catch",
+  sigma_effort = 0,
+  length_50_sel = 0.3 * fishPv$linf,
+  initial_effort = 10000,
+  profit_lags =  5,
+  beta = 2,
+  max_cr_ratio = 0.9,
+  max_perc_change_f = 0.5,
+  effort_allocation = 'simple',
+  mpa_reaction = "concentrate"
+)
+
+```
+
+
+
+```{r cyNull}
+
+### No MPA
+
+cyNull <- spasm::sim_fishery(
+  fish = fishPv,
+  fleet = fleetCY,
+  manager = create_manager(mpa_size = 0, year_mpa = 50),
+  num_patches = 100,
+  sim_years = 100,
+  burn_years = 50,
+  time_step = fishPv$time_step,
+  est_msy = TRUE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE
+)%>%
+  mutate(run="noMPA")
+
+plot_spasm(cyNull, type = "totals", font_size = 12)
+
+```
+
+
+
+```{r cyMPA}
+### Standard MPA
+cyMPA <- spasm::sim_fishery(
+  fish = fishPv,
+  fleet = fleetCE,
+  manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+  num_patches = 100,
+  sim_years = 100,
+  burn_years = 50,
+  time_step = fishPv$time_step,
+  est_msy = TRUE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE
+)%>%
+  mutate(run="mpa")
+
+#plot_spasm(cyMPA, type = "totals", font_size = 12)
+
+```
+
+
+```{r ceAq}
+## Aquaculture
+cyAq <- sim_fisheryAq(
+  fish = fishPv,
+  fleet = fleetCY,
+  manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+  num_patches = 100,
+  sim_years = 100,
+  burn_years = 50,
+  time_step = fishPv$time_step,
+  est_msy = TRUE,
+  random_mpas = FALSE,
+  min_size = 0.05,
+  mpa_habfactor = 1,
+  sprinkler = FALSE,
+  keep_burn = FALSE,
+  farmSize = 2,
+  farmAttr = 1.5,
+  farmStay = 0.7,
+  buffSize=5) %>%
+  mutate(run="farm")
+
+#plot_spasm(cyAq, type = "totals", font_size = 12)
+
+
+```
+
+```{r ceAll}
+
+cyAll<-bind_rows(cyNull,cyMPA,cyAq)%>%
+  group_by(year,run)%>%
+  summarise(effort=sum(effort),
+            profits=sum(profits),
+            biomass=sum(biomass),
+            catch=sum(numbers_caught)) %>%
+  ungroup()%>%
+  mutate(PPUE=profits/effort)
+
+cyBM<-ggplot(cyAll,aes(year,biomass,color=run,group=run))+
+  geom_line()+
+  theme_bw()
+
+cyCatch<-ggplot(cyAll,aes(year,catch,color=run,group=run))+
+  geom_line()+
+  theme_bw()
+
+
+titleCY<-ggdraw()+draw_label("Constant Yield")
+
+plot_grid(titleCY,cyBM,cyCatch,ncol=1,rel_heights = c(0.15,1,1))
 
 ```
 
@@ -2396,46 +2627,101 @@ relMoveCEpl
 
 ```{r attrSize}
 
-# attrSz<-expand.grid(attraction=seq(1,2,by=0.05),
-#                     size=seq(1,10,by=1)) %>%
-#   as_data_frame()%>%
-#   mutate(biomass=NA,
-#          catch=NA)
-# 
-# 
-# for(i in 1:nrow(attrSz)){
-#   
-#   attrSz[i,3:4]<-sim_fisheryAq(
-#     fish = fishPv,
-#     fleet = fleetOA,
-#     manager = create_manager(mpa_size = 0.1, year_mpa = 50),
-#     num_patches = 1000,
-#     sim_years = 100,
-#     burn_years = 50,
-#     time_step = fishPv$time_step,
-#     est_msy = FALSE,
-#     random_mpas = FALSE,
-#     min_size = 0.05,
-#     sprinkler = FALSE,
-#     keep_burn = FALSE,
-#     farmSize = as.numeric(attrSz[i,"size"]),
-#     farmStay = as.numeric(attrSz[i,"attraction"]),
-#     buffSize=3) %>%
-#     group_by(year)%>%
-#     summarise(biomass=sum(biomass),
-#               catch=sum(numbers_caught))%>%
-#     ungroup()%>%
-#     filter(year==max(year))%>%
-#     select(biomass,catch)%>%
-#     as_vector()
-#   
-# }
-# 
-# attrSz<-attrSz%>%
-#   mutate(size=replace(size,size==0,10))
-# 
-# ggplot(attrSz,aes(attraction,size,color=biomass))+
-#   geom_point(size=2)
+attrSz<-expand.grid(attraction=seq(1,2,by=0.05),
+                    size=seq(1,10,by=1)) %>%
+  as_data_frame()%>%
+  mutate(biomass=NA,
+         catch=NA)
+
+for(i in 195:nrow(attrSz)){
+
+  attrSz[i,3:4]<-sim_fisheryAq(
+    fish = fishPv,
+    fleet = fleetOA,
+    manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+    num_patches = 1000,
+    sim_years = 100,
+    burn_years = 50,
+    time_step = fishPv$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    farmSize = as.numeric(attrSz[i,"size"]),
+    farmAttr = as.numeric(attrSz[i,"attraction"]),
+    buffSize=3) %>%
+    group_by(year)%>%
+    summarise(biomass=sum(biomass),
+              catch=sum(numbers_caught))%>%
+    ungroup()%>%
+    filter(year==max(year))%>%
+    select(biomass,catch)%>%
+    as_vector()
+
+}
+
+attrSz<-attrSz%>%
+  mutate(size=replace(size,size==0,10))
+
+ggplot(attrSz,aes(attraction,size,fill=biomass))+
+  geom_tile()+
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_continuous(breaks = c(1,1.25,1.50,1.75,2.0),
+                     expand = c(0,0))+
+  theme_bw()
+
+```
+
+## Attraction and movement
+
+```{r attrSize}
+
+attrMv<-expand.grid(attraction=seq(1,2,by=0.05),
+                    move=seq(1,20,by=1)) %>%
+  as_data_frame()%>%
+  mutate(biomass=NA,
+         catch=NA)
+
+for(i in 1:nrow(attrMv)){
+
+  fishPv$adult_movement<-attrMv[i,2]
+  
+  attrMv[i,3:4]<-sim_fisheryAq(
+    fish = fishPv,
+    fleet = fleetOA,
+    manager = create_manager(mpa_size = 0.1, year_mpa = 50),
+    num_patches = 100,
+    sim_years = 100,
+    burn_years = 50,
+    time_step = fishPv$time_step,
+    est_msy = FALSE,
+    random_mpas = FALSE,
+    min_size = 0.05,
+    sprinkler = FALSE,
+    keep_burn = FALSE,
+    farmSize = 2,
+    farmAttr = as.numeric(attrMv[i,"attraction"]),
+    buffSize=3) %>%
+    group_by(year)%>%
+    summarise(biomass=sum(biomass),
+              catch=sum(numbers_caught))%>%
+    ungroup()%>%
+    filter(year==max(year))%>%
+    select(biomass,catch)%>%
+    as_vector()
+
+}
+
+#return to old movement settings  
+fishPv$adult_movement<-2
+
+ggplot(attrMv,aes(attraction,move,fill=biomass))+
+  geom_tile()+
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_continuous(breaks = c(1,1.25,1.50,1.75,2.0),
+                     expand = c(0,0))+
+  theme_bw()
 
 ```
 

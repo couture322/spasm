@@ -22,8 +22,8 @@
 #' @param theta_tuner
 #' @param q_cv
 #' @param q_ac
-#' @param cost_cv
-#' @param cost_ac
+#' @param cost_cv # cost coeff of var
+#' @param cost_ac #cost autocorrelation
 #' @param max_perc_change_f
 #' @param max_cr_ratio
 #' @param q_slope

@@ -599,18 +599,21 @@ sim_fisheryAq <-
                    movement=movement*farmImpacts) %>% ## adjust 'prob_move' by 'farm_attr'; increase probabilty that move FROM farm locations
             select(-noLve)%>%
             group_by(from) %>%
-            dplyr::mutate(prob_move = movement / sum(movement))
+            dplyr::mutate(prob_move = movement / sum(movement))%>%
+            ungroup()
 
        } else {
           adult_move_grid <- adult_move_grid%>%
             group_by(from) %>%
-            dplyr::mutate(prob_move = movement / sum(movement))
-        }
+            dplyr::mutate(prob_move = movement / sum(movement))%>%
+            ungroup()
+       }
+
+        print(sum(adult_move_grid$prob_move))
 
 
 
         adult_move_matrix <- adult_move_grid %>%
-          ungroup() %>%
           dplyr::select(from, to, prob_move) %>%
           # group_by(to) %>%
           # mutate(grouped_id = row_number()) %>%
