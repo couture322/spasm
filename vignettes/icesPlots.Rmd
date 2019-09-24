@@ -941,7 +941,7 @@ fishPv <-
   time_step = 1,
   # sigma_r = 0,
   steepness = 0.6,
-  # r0 = 4290000,
+  r0 = 4290000,
   # rec_ac = 0,
   adult_movement = 2,
   larval_movement = 5,
@@ -1123,7 +1123,7 @@ oaMPA10 <- spasm::sim_fishery(
   fleet = fleetOA,
   manager = create_manager(mpa_size = 0.1, year_mpa = 50),
   num_patches = 100,
-  sim_years = 100,
+  sim_years = 200,
   burn_years = 50,
   time_step = fishPv$time_step,
   est_msy = FALSE,
@@ -1135,14 +1135,14 @@ oaMPA10 <- spasm::sim_fishery(
 )%>%
   mutate(run="MPA")
 
-plot_spasm(oaMPA10, type = "totals", font_size = 12)
+#plot_spasm(oaMPA10, type = "totals", font_size = 12)
 
 oaMPA15 <- spasm::sim_fishery(
   fish = fishPv,
   fleet = fleetOA,
   manager = create_manager(mpa_size = 0.15, year_mpa = 50),
   num_patches = 100,
-  sim_years = 100,
+  sim_years = 200,
   burn_years = 50,
   time_step = fishPv$time_step,
   est_msy = FALSE,
@@ -1186,7 +1186,7 @@ oaAqStay <- sim_fisheryAq(
   fleet = fleetOA,
   manager = create_manager(mpa_size = 0.1, year_mpa = 50),
   num_patches = 100,
-  sim_years = 100,
+  sim_years = 200,
   burn_years = 50,
   time_step = fishPv$time_step,
   est_msy = FALSE,
@@ -1241,13 +1241,14 @@ oaBM<-ggplot(oaAll[oaAll$year>49,],aes(year,biomass,color=run,group=run))+
 
 oaCatch<-ggplot(oaAll[oaAll$year>49,],aes(year,catch,color=run,group=run))+
   geom_line()+
-  labs()+
-  theme_bw()
+  scale_color_brewer(palette="Dark2")+
+  labs(y="Catch (MT)")+
+  theme_bw()+ theme(legend.title = element_blank())
 
 oaPpue<-ggplot(oaAll,aes(year,ppue,color=run,group=run))+
   geom_line()+
-  labs()+
   theme_bw()
+
 
 
 titleOA<-ggdraw()+draw_label("Open access")
