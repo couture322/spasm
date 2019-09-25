@@ -943,9 +943,9 @@ fishPv <-
   steepness = 0.6,
   r0 = 4290000,
   # rec_ac = 0,
-  adult_movement = 2,
-  larval_movement = 5,
-  density_dependence_form = 1, # change to 2 to use the habfactor
+  adult_movement = 1,
+  larval_movement = 7,
+  density_dependence_form = 3, # change to 2 to use the habfactor
   density_movement_modifier = 0.9,
   price = 100000
   )
@@ -976,17 +976,17 @@ fleetOAt <- create_fleet(
   sigma_effort = 0,
   length_50_sel = 0.2 * fishPv$linf,
   initial_effort = 10000,
-  profit_lags =  1,
-  beta = 2,
-  max_cr_ratio = 0.9,
-  max_perc_change_f = 0.5,
+  # profit_lags =  1,
+  # beta = 2,
+  # max_cr_ratio = 0.9,
+  # max_perc_change_f = 0.5,
   effort_allocation = 'profit-gravity',
   mpa_reaction = "concentrate"
 )
 
 oaNullT <- spasm::sim_fishery(
   fish = fishPv,
-  fleet = fleetOA,
+  fleet = fleetOAt,
   manager = create_manager(mpa_size = 0, year_mpa = 100),
   num_patches = 100,
   sim_years = 200,
@@ -1002,7 +1002,7 @@ oaNullT <- spasm::sim_fishery(
 
 oaMPAt <- spasm::sim_fishery(
   fish = fishPv,
-  fleet = fleetOA,
+  fleet = fleetOAt,
   manager = create_manager(mpa_size = 0.1, year_mpa = 100),
   num_patches = 100,
   sim_years = 200,
@@ -1066,7 +1066,7 @@ fleetOA <- create_fleet(
   q_slope = 0,
   fleet_model = "open-access",#"constant-effort",
   sigma_effort = 0,
-  length_50_sel = 0.5 * fishPv$linf,
+  length_50_sel = 0.2 * fishPv$linf,
   initial_effort = 10000,
   profit_lags =  1,
   beta = 2,
@@ -1198,7 +1198,7 @@ oaAqStay <- sim_fisheryAq(
   farmSize = 2,
   farmAttr = 1.5,
   farmStay=0.7,
-  buffSize=5) %>%
+  buffSize=7) %>%
   mutate(run="farmWStay")
 
 # oaAqStay2 <- sim_fisheryAq(
@@ -1251,7 +1251,7 @@ oaPpue<-ggplot(oaAll,aes(year,ppue,color=run,group=run))+
 
 
 
-titleOA<-ggdraw()+draw_label("Open access")
+titleOA<-ggdraw()+draw_label("Open access, DDF=3,LM=7, fs=2, sprinkler=T")
 
 plot_grid(titleOA,oaBM,oaCatch,ncol=1,rel_heights = c(0.15,1,1))
 
@@ -1480,7 +1480,7 @@ cyMPA <- spasm::sim_fishery(
 ```
 
 
-```{r ceAq}
+```{r cyAq}
 ## Aquaculture
 cyAq <- sim_fisheryAq(
   fish = fishPv,
@@ -1507,7 +1507,7 @@ cyAq <- sim_fisheryAq(
 
 ```
 
-```{r ceAll}
+```{r cyAll}
 
 cyAll<-bind_rows(cyNull,cyMPA,cyAq)%>%
   group_by(year,run)%>%
