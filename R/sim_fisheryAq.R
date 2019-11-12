@@ -271,7 +271,7 @@ sim_fisheryAq <-
 
       nFrms<-round(prop_mpas/farmSize)
 
-      farmStart<-round(seq(0,num_patches,length.out = nFrms+2))[1:nFrms+1]
+      farmStart<-round(seq(0,num_patches,length.out = nFrms+2))[0:nFrms]
 
       farmLFunc<-function(x){
         seq(x,(x+farmSize-1),by=1)
