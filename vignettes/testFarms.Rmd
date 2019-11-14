@@ -108,7 +108,7 @@ simpleSTest <- sim_fisheryAq(
   fish = fish,
   fleet = fleet,
   manager = create_manager(mpa_size = 0.1, year_mpa = 15),
-  num_patches = 100,
+  num_patches = 50,
   sim_years = 50,
   burn_years = 1,
   time_step = fish$time_step,
@@ -610,25 +610,16 @@ stayMoveFunc<-function(fish,fleet,szVec,fsVec,bmVec){
 
 ```{r}
 
-## test data
-#moveVecT<-c(0,10)
-# sizeVecT<-c(0,0.5)
-# farmVecT<-c(1,10)
-# habVecT<-c(1,4)
-# msDfT<-rangesFunc(fishP,fleetP,sizeVecT,farmVecT,habVecT)#test:
-# head(msDfT)
+### grow_and_die_adj()
+
+nums<-c(rnorm(25,100,5))
+f=0.1
+manager = create_manager(mpa_size = 0.15, year_mpa = 15)
+y=16
+mpa_locations=c(10,11,12,17,18,19)
+
+grow_and_die_adj(numbers=nums, f, mpa, fish, fleet,y,mImp=1.5,mgr=manager,mpaLocs=mpa_locations)
 
 
-### Full runs
 
-#moveVec<-seq(0,10,by=1)
-sizeVecfb<-seq(0,0.2,by=0.05)
-
-farmVecfb<-seq(1,10,by=1)
-
-buffVec<-seq(1,10,by=1) 
-
-fsBm<-stayMoveFunc(fishP,fleetP,sizeVecfb,farmVecfb,buffVec)
-
-write.csv(fsBm,file="testRunSFBY2.csv",row.names = F)
 ```

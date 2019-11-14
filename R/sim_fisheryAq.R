@@ -49,6 +49,7 @@ sim_fisheryAq <-
            #bufferMove=1,
            farmStay=NA, # propensity to stay: 1 = no change, <1 means more likely to stay
            buffSize=2,
+           mImp=1, #impact of the farm on natural mortality rate: <1 improves health, >1 damaging
            sprinkler = FALSE,
            keep_burn = FALSE,
            tune_costs = FALSE) {
@@ -271,7 +272,7 @@ sim_fisheryAq <-
 
       nFrms<-round(prop_mpas/farmSize)
 
-      farmStart<-round(seq(0,num_patches,length.out = nFrms+2))[0:nFrms]
+      farmStart<-round(seq(0,num_patches,length.out = nFrms+2))[0:nFrms]+1
 
       farmLFunc<-function(x){
         seq(x,(x+farmSize-1),by=1)
@@ -282,43 +283,43 @@ sim_fisheryAq <-
 
     } else {
 
-    if (random_mpas == T & prop_mpas > 0) {
+      if (random_mpas == T & prop_mpas > 0) {
 
-      ms <- min(prop_mpas, max(1, min_size * num_patches)) # calculate min MPA size for random MPA generation
+        ms <- min(prop_mpas, max(1, min_size * num_patches)) # calculate min MPA size for random MPA generation
 
-      cwidth <- num_patches / ms
+        cwidth <- num_patches / ms
 
-      atemp <- tibble(patch = 1:num_patches) %>%
-        dplyr::mutate(cluster = cut(patch, pmax(2,round(cwidth))))
-      btemp <-
-        sampling::cluster(atemp,
-                          cluster = "cluster",
-                          pmin(n_distinct(atemp$cluster),ceiling(prop_mpas / ms)),
-                          method = "srswor")
+        atemp <- tibble(patch = 1:num_patches) %>%
+          dplyr::mutate(cluster = cut(patch, pmax(2,round(cwidth))))
+        btemp <-
+          sampling::cluster(atemp,
+                            cluster = "cluster",
+                            pmin(n_distinct(atemp$cluster),ceiling(prop_mpas / ms)),
+                            method = "srswor")
 
-      ctemp <- sampling::getdata(atemp, btemp) %>%
-        sample_n(pmin(prop_mpas, nrow(.)))
+        ctemp <- sampling::getdata(atemp, btemp) %>%
+          sample_n(pmin(prop_mpas, nrow(.)))
 
-      mpa_locations <- ctemp$patch
+        mpa_locations <- ctemp$patch
 
 
-    } else {
-      mpa_locations <-
-        (1:num_patches)[0:prop_mpas] #weird zero is in case prop_mpas is zero
-    }
-
-    if (!all(is.na(manager$mpa_locations))){
-
-      if (prop_mpas > 0){
-        warning("overwriting MPA size with specific MPA locations")
+      } else {
+        mpa_locations <-
+          (1:num_patches)[0:prop_mpas] #weird zero is in case prop_mpas is zero
       }
 
-      mpa_locations <- manager$mpa_locations
+      if (!all(is.na(manager$mpa_locations))){
 
-      if (max(mpa_locations) > num_patches){
-        stop("invalid MPA location supplied, make sure MPAs fit inside number of patches")
+        if (prop_mpas > 0){
+          warning("overwriting MPA size with specific MPA locations")
+        }
+
+        mpa_locations <- manager$mpa_locations
+
+        if (max(mpa_locations) > num_patches){
+          stop("invalid MPA location supplied, make sure MPAs fit inside number of patches")
+        }
       }
-    }
     }
 
 
@@ -340,7 +341,7 @@ sim_fisheryAq <-
 
       c(farmStart-buffSize,farmStart+farmSize+buffSize)
 
-      }
+    }
 
     n0_at_age <-
       (fish$r0 / num_patches) * exp(-fish$m * seq(fish$min_age, fish$max_age, fish$time_step))
@@ -525,7 +526,7 @@ sim_fisheryAq <-
       as.matrix()
 
 
-##### simulation (post-burn) #####
+    ##### simulation (post-burn) #####
 
     farm_attr <- expand.grid(to=mpa_locations,distance=0:buffSize)%>% # limit attraction to areas close (within buffsize) to the farm (each patch of the farm)
       as.data.frame()%>%
@@ -588,7 +589,7 @@ sim_fisheryAq <-
           ))
 
 
-       if((y-burn_years) >= manager$year_mpa){ # apply attractor values just after farm is deployed
+        if((y-burn_years) >= manager$year_mpa){ # apply attractor values just after farm is deployed
 
           adult_move_grid <- adult_move_grid %>%
             ungroup()%>%
@@ -599,21 +600,18 @@ sim_fisheryAq <-
                    movement=movement*farmImpacts) %>% ## adjust 'prob_move' by 'farm_attr'; increase probabilty that move FROM farm locations
             select(-noLve)%>%
             group_by(from) %>%
-            dplyr::mutate(prob_move = movement / sum(movement))%>%
-            ungroup()
+            dplyr::mutate(prob_move = movement / sum(movement))
 
-       } else {
+        } else {
           adult_move_grid <- adult_move_grid%>%
             group_by(from) %>%
-            dplyr::mutate(prob_move = movement / sum(movement))%>%
-            ungroup()
-       }
-
-        print(sum(adult_move_grid$prob_move))
+            dplyr::mutate(prob_move = movement / sum(movement))
+        }
 
 
 
         adult_move_matrix <- adult_move_grid %>%
+          ungroup() %>%
           dplyr::select(from, to, prob_move) %>%
           # group_by(to) %>%
           # mutate(grouped_id = row_number()) %>%
@@ -819,13 +817,16 @@ sim_fisheryAq <-
       pop[pop$year == (y + 1), "numbers"] <-
         pop[now_year, ] %>%
         group_by(patch) %>%
-        dplyr::mutate(numbers = grow_and_die(
+        dplyr::mutate(numbers = grow_and_die_adj(
           numbers = numbers,
           f = f,
           mpa = mpa,
           fish = fish,
           fleet = fleet,
-          y = y
+          y = y,
+          mImp=mImp,
+          mgr=manager,
+          mpaLocs=mpa_locations
         )$survivors) %>%
         ungroup() %>%
         {
@@ -836,13 +837,16 @@ sim_fisheryAq <-
         pop[now_year, ] %>%
         group_by(patch) %>%
         dplyr::mutate(
-          numbers_caught = grow_and_die(
+          numbers_caught = grow_and_die_adj(
             numbers = numbers,
             f = f,
             mpa = mpa,
             fish = fish,
             fleet = fleet,
-            y = y
+            y = y,
+            mImp=mImp,
+            mgr=manager,
+            mpaLocs=mpa_locations
           )$caught
         ) %>%
         ungroup() %>%
@@ -865,7 +869,7 @@ sim_fisheryAq <-
       pop$numbers[pop$year == (y + 1) &
                     pop$age == fish$min_age] <-
         calculate_recruits(
-        #calculate_recruitsFarm(
+          #calculate_recruitsFarm(
           #farmYrs=farmYrs,
           pop = pop[pop$year == y, ],
           fish = fish,
