@@ -14,17 +14,13 @@
 #' \dontrun{
 #' grow_and_die_adj(numbers, fish, fleet)
 #' }
-grow_and_die_adj <- function(numbers, f, mpa, fish, fleet,y,mImp,mgr=manager,mpaLocs=mpa_locations) {
+grow_and_die_adj <- function(numbers, f, mpa, fish, fleet,y,mImp) {
 
   survivors <- vector(mode = 'numeric', length = length(numbers))
 
   # survival <- exp(-(fish$m + (f * (!mpa) * fleet$sel_at_age)))
 
-  survival <- exp(-fish$time_step*(fish$m + (f * fleet$sel_at_age)))
-
-  if(y >= mgr$year_mpa){
-    survival[mpaLocs]<-exp(-fish$time_step*(fish$m*(mImp) + (f * fleet$sel_at_age)))
-  }
+  survival <- exp(-fish$time_step*(fish$m*(mImp) + (f * fleet$sel_at_age)))
 
   death <-  1 - survival
 
@@ -37,11 +33,7 @@ grow_and_die_adj <- function(numbers, f, mpa, fish, fleet,y,mImp,mgr=manager,mpa
     survivors[max_index] + numbers[max_index] * survival[max_index]
 
   caught <-
-    (fish$time_step * f * fleet$sel_at_age) / (fish$time_step * (fish$m + (f * fleet$sel_at_age))) *  (numbers * death)
-
-  if(y >= mgr$year_mpa){
-  caught[mpaLocs]<-(fish$time_step * f * fleet$sel_at_age) / (fish$time_step * (fish$m*(mImp) + (f * fleet$sel_at_age))) *  (numbers * death)
-  }
+    (fish$time_step * f * fleet$sel_at_age) / (fish$time_step * (fish$m*(mImp) + (f * fleet$sel_at_age))) *  (numbers * death)
 
    # return(survivors)
 

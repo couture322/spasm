@@ -817,17 +817,21 @@ sim_fisheryAq <-
       pop[pop$year == (y + 1), "numbers"] <-
         pop[now_year, ] %>%
         group_by(patch) %>%
-        dplyr::mutate(numbers = grow_and_die_adj(
-          numbers = numbers,
-          f = f,
-          mpa = mpa,
-          fish = fish,
-          fleet = fleet,
-          y = y,
-          mImp=mImp,
-          mgr=manager,
-          mpaLocs=mpa_locations
-        )$survivors) %>%
+        dplyr::mutate(numbers = ifelse(patch %in% mpa_locations,
+                                       grow_and_die_adj(
+                                         numbers = numbers,
+                                         f = f,
+                                         mpa = mpa,
+                                         fish = fish,
+                                         fleet = fleet,
+                                         y = y,
+                                         mImp=mImp)$survivors,
+                                       grow_and_die(numbers = numbers,
+                                                    f = f,
+                                                    mpa = mpa,
+                                                    fish = fish,
+                                                    fleet = fleet,
+                                                    y = y)$survivors)) %>%
         ungroup() %>%
         {
           .$numbers
@@ -837,17 +841,21 @@ sim_fisheryAq <-
         pop[now_year, ] %>%
         group_by(patch) %>%
         dplyr::mutate(
-          numbers_caught = grow_and_die_adj(
-            numbers = numbers,
-            f = f,
-            mpa = mpa,
-            fish = fish,
-            fleet = fleet,
-            y = y,
-            mImp=mImp,
-            mgr=manager,
-            mpaLocs=mpa_locations
-          )$caught
+          numbers_caught = ifelse(patch %in% mpa_locations,
+                                  grow_and_die_adj(
+                                    numbers = numbers,
+                                    f = f,
+                                    mpa = mpa,
+                                    fish = fish,
+                                    fleet = fleet,
+                                    y = y,
+                                    mImp=mImp)$caught,
+                                  grow_and_die(numbers = numbers,
+                                               f = f,
+                                               mpa = mpa,
+                                               fish = fish,
+                                               fleet = fleet,
+                                               y = y)$caught)
         ) %>%
         ungroup() %>%
         {

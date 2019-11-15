@@ -117,6 +117,7 @@ simpleSTest <- sim_fisheryAq(
   min_size = 0.05,
   mpa_habfactor = 1,
   farmStay = 3, ##
+  mImp = 1.5,
   sprinkler = FALSE,
   keep_burn = FALSE
 )
@@ -612,14 +613,22 @@ stayMoveFunc<-function(fish,fleet,szVec,fsVec,bmVec){
 
 ### grow_and_die_adj()
 
-nums<-c(rnorm(25,100,5))
+nums<-c(rnorm(17,100,5))
 f=0.1
 manager = create_manager(mpa_size = 0.15, year_mpa = 15)
 y=16
 mpa_locations=c(10,11,12,17,18,19)
 
-grow_and_die_adj(numbers=nums, f, mpa, fish, fleet,y,mImp=1.5,mgr=manager,mpaLocs=mpa_locations)
+grow_and_die_adj(numbers=nums, f, mpa, fish, fleet, y, mImp=1)
 
 
 
+#### trying stuff
+
+# test<-data.frame(patch=c(1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4,5,5,5,5,5),
+#                  nums=rnorm(25,100,15))
+# test2<-test%>%
+#   group_by(patch)%>%
+#   mutate(newbie = ifelse(patch %in% c(2,4), nums-75,nums*2))
+# 
 ```
